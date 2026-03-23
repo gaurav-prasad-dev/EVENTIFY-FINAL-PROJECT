@@ -1,0 +1,365 @@
+🎟 Movie / Event Ticket Booking Backend
+
+A scalable ticket booking backend similar to BookMyShow with real-time seat locking, payment integration using Razorpay, QR tickets, and Redis caching.
+
+1️⃣ Tech Stack
+
+Backend technologies used:
+
+Node.js
+Express.js
+MongoDB (Database)
+Redis (Seat Locking & Caching)
+Socket.IO (Real-time seat updates)
+Razorpay (Payment Gateway)
+JWT (Authentication + QR Ticket security)
+Node-cron (Auto booking expiry)
+PDFKit (Ticket PDF generation)
+QRCode (Ticket QR generation)
+
+Architecture type:
+
+REST API + Event Driven (Webhooks + WebSockets)
+2️⃣ High Level System Architecture
+Client
+   ↓
+Express API Server
+   ↓
+Controllers
+   ↓
+MongoDB (permanent data)
+Redis (temporary seat locks)
+   ↓
+External Services
+   ↓
+Razorpay Payment Gateway
+Socket.IO (real time updates)
+3️⃣ Database Models
+
+Main collections:
+
+User
+name
+email
+password
+accountType (user/admin)
+City
+name
+state
+Venue
+name
+city
+address
+Screen
+name
+venue
+totalSeats
+Content (Movie/Event)
+title
+description
+type (movie/event)
+duration
+Show
+content
+venue
+screen
+date
+time
+basePrice
+bookedSeats []
+Booking
+user
+show
+seats []
+totalAmount
+bookingStatus
+paymentStatus
+qrCode
+expiresAt
+4️⃣ Authentication System
+
+Authentication implemented using:
+
+JWT
+Protected Routes
+Role Based Access
+
+Middleware used:
+
+auth
+isAdmin
+
+Example:
+
+Admin → create city / venue / show
+User → book tickets
+5️⃣ Seat Locking System (Redis)
+
+Major problem in ticket systems:
+
+Two users selecting same seat
+
+Solution:
+
+Redis atomic seat locking
+
+Implementation:
+
+Redis SET NX EX
+
+Example key:
+
+show:123:seat:A1
+
+Flow:
+
+User selects seat
+      ↓
+Seat locked in Redis
+      ↓
+Lock expires after 5 minutes
+
+Benefits:
+
+Prevents double booking
+High speed locking
+Auto expiry
+6️⃣ Booking Flow
+
+Booking lifecycle:
+
+User selects seats
+      ↓
+Seat locked in Redis
+      ↓
+Booking created (Reserved)
+      ↓
+Payment initiated
+      ↓
+Payment confirmed
+      ↓
+Seats permanently booked
+      ↓
+QR ticket generated
+
+Booking states:
+
+Reserved
+Confirmed
+Expired
+7️⃣ Payment Integration (Razorpay)
+
+Payment flow:
+
+User clicks pay
+      ↓
+Backend creates Razorpay order
+      ↓
+User completes payment
+      ↓
+Razorpay sends webhook
+      ↓
+Backend verifies webhook
+      ↓
+Booking confirmed
+
+Webhook verification:
+
+HMAC SHA256 signature validation
+
+Important security step:
+
+Idempotency check
+
+Prevents:
+
+Duplicate webhook processing
+8️⃣ QR Ticket System
+
+After successful payment:
+
+JWT token generated
+
+Token contains:
+
+bookingId
+showId
+seats
+
+Then converted into QR code:
+
+QRCode.toDataURL()
+
+Stored in booking.
+
+Purpose:
+
+Secure ticket verification
+9️⃣ Ticket Scanning System
+
+At theatre entry:
+
+Flow:
+
+Staff scans QR code
+      ↓
+Frontend sends token
+      ↓
+Backend verifies JWT
+      ↓
+Booking validated
+      ↓
+Entry allowed
+
+Extra check:
+
+ticketUsed flag
+
+Prevents ticket reuse.
+
+🔟 Real Time Seat Updates (Socket.IO)
+
+Implemented using Socket.IO.
+
+When a seat is locked:
+
+Backend emits event
+
+Example:
+
+seatLocked
+seatBooked
+seatUnlocked
+
+Frontend receives event and updates seat UI instantly.
+
+Benefits:
+
+Real time seat availability
+Better user experience
+No API polling
+1️⃣1️⃣ Booking Expiry (Cron Job)
+
+If payment not completed:
+
+Booking expires automatically
+
+Implemented using:
+
+node-cron
+
+Process:
+
+Find expired bookings
+Release Redis locks
+Mark booking as expired
+
+This frees seats for other users.
+
+1️⃣2️⃣ Ticket PDF Download
+
+Users can download ticket as PDF.
+
+Implemented using:
+
+PDFKit
+
+PDF contains:
+
+Movie/Event
+Venue
+Seat numbers
+Booking ID
+QR code
+1️⃣3️⃣ API Structure
+
+Example API routes:
+
+Auth
+POST /api/v1/auth/signup
+POST /api/v1/auth/login
+Cities
+POST /api/v1/city/create
+GET /api/v1/city
+Venues
+POST /api/v1/venue/create
+GET /api/v1/venue
+Shows
+POST /api/v1/show/create
+GET /api/v1/show
+Booking
+POST /api/v1/booking/lockSeats
+POST /api/v1/booking/createBooking
+GET /api/v1/booking/myBookings
+Payment
+POST /api/v1/payment/createOrder
+POST /api/v1/payment/razorpay-webhook
+Tickets
+GET /api/v1/ticket/download/:bookingId
+POST /api/v1/ticket/scan
+1️⃣4️⃣ Security Measures
+
+Implemented security features:
+
+JWT authentication
+Webhook signature verification
+Redis atomic locking
+Idempotent payment processing
+Seat ownership validation
+1️⃣5️⃣ System Flow (End To End)
+User selects show
+      ↓
+Seat map loaded
+      ↓
+User selects seats
+      ↓
+Seats locked in Redis
+      ↓
+Booking created
+      ↓
+Razorpay order created
+      ↓
+User pays
+      ↓
+Razorpay webhook received
+      ↓
+Payment verified
+      ↓
+Seats permanently booked
+      ↓
+QR ticket generated
+      ↓
+User downloads ticket
+      ↓
+Staff scans ticket at entry
+1️⃣6️⃣ Scalability Considerations
+
+System designed to scale using:
+
+Redis for fast seat locking
+Webhook based payment verification
+WebSockets for real-time updates
+Cron jobs for cleanup
+
+These patterns are used in real ticket platforms like BookMyShow.
+
+1️⃣7️⃣ Key Challenges Solved
+
+Problems solved in this system:
+
+Double seat booking
+Payment verification security
+Real-time seat updates
+Expired booking cleanup
+Ticket fraud prevention
+🎤 Short Interview Explanation (30 seconds)
+
+You can say:
+
+I built a scalable ticket booking backend similar to BookMyShow using Node.js, Express, MongoDB, Redis, and Razorpay.
+
+I implemented Redis-based seat locking to prevent double bookings, Razorpay webhook verification for secure payments, and QR code based tickets for entry validation.
+
+I also added real-time seat updates using Socket.IO and automated booking expiry using cron jobs. The system follows a REST architecture with event-driven components like webhooks and WebSockets.
+
+✅ This explanation will impress most backend interviewers.
