@@ -1,75 +1,43 @@
 const cron = require("node-cron");
 const Booking = require("../models/BookingSchema");
-const Show = require("../models/Show");
 const redisClient = require("../config/redis");
 
+cron.schedule("*/1 * * * *", async () => {
+  console.log("Checking expired bookings...");
 
+  const now = new Date();
 
-cron.schedule("*/1 * * * *",async () => {
-     console.log("Checking expired bookings...");
+  const expiredBookings = await Booking.find({
+    bookingStatus: "Reserved",
+    paymentStatus: "Pending",
+    expiresAt: { $lt: now }
+  });
 
-     const now = new Date();
+  for (const booking of expiredBookings) {
+    try {
+      // safety check
+      if (booking.bookingStatus !== "Reserved") continue;
 
-     const expiredBookings = await Booking.find({
-        bookingStatus:"Reserved",
-        paymentStatus:"Pending",
-        expiresAt: { $lt: now }
-     });
+      // remove redis locks (optimized)
+      const keys = booking.seats.map(
+        seat => `show:${booking.show}:seat:${seat}`
+      );
 
-     for(const booking of expiredBookings){
+      await redisClient.del(keys);
 
-        const show = await Show.findById(booking.show);
+      // update booking
+      booking.bookingStatus = "Cancelled";
+      await booking.save();
 
-        // remove redis lock
+      // notify frontend
+      global.io.to(booking.show.toString()).emit("seat_unlocked", {
+        seats: booking.seats
+      });
 
-        for(const seat of booking.seats){
-            const key = `show:${booking.show}:seat:${seat}`;
-            await redisClient.del(key);
-        }
+      console.log(`Booking ${booking._id} cancelled due to expiry`);
 
-
-        booking.bookingStatus = "Cancelled";
-
-        await booking.save();
-
-        console.log(`Booking ${booking._id} cancelled due to expoirt`);
-
-     }
-
+    } catch (err) {
+      console.log("Error processing booking:", booking._id, err);
+    }
+  }
 });
-
-
-// Every 1 minute
-// ↓
-// Cron job runs
-// ↓
-// Check expired bookings
-// ↓
-// For each expired booking
-// ↓
-// Unlock Redis seats
-// ↓
-// Cancel booking
-
-
-
-// 🔟 Real Systems Use Cron For Many Things
-
-// Platforms like:
-
-// BookMyShow
-
-// Amazon
-
-// Netflix
-
-// use cron jobs for:
-
-// expire sessions
-// clear carts
-// send notifications
-// cleanup data
-// generate reports
-
-
-

@@ -3,9 +3,13 @@ const mongoose = require("mongoose");
 
 const showSchema = new mongoose.Schema({
 
-    content:{
-        type:mongoose.Schema.Types.ObjectId,
-        ref:"Content",
+    // content:{
+    //     type:mongoose.Schema.Types.ObjectId,
+    //     ref:"Content",
+    //     required:true,
+    // },
+    movieId:{
+        type:Number, // TMDB movie ID
         required:true,
     },
      screen: {
@@ -13,6 +17,10 @@ const showSchema = new mongoose.Schema({
     ref: "Screen",
     required: true,
   },
+  city: {
+  type: String, // "Indore"
+  required: true,
+},
     showDate:{
         type:Date,
         required:true,

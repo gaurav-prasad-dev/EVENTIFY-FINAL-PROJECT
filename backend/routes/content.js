@@ -5,7 +5,8 @@ const {
     createContent,
     getContents,
     getContentById,
-    updateContent
+    updateContent,
+   
 } = require("../controllers/contentController");
 
 
@@ -14,6 +15,7 @@ const {
 
 router.post("/create", auth, isAdmin, createContent);
 router.get("/", getContents);
+
 router.get("/:id", getContentById);
 router.put("/:id",auth,isAdmin, updateContent);
 

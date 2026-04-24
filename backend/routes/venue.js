@@ -10,7 +10,8 @@
 console.log("isAdmin:", isAdmin);
 console.log("createVenue:", createVenue);
 
-   router.post("/create-venue", auth, isAdmin, createVenue);
+   router.post("/create-venue",  createVenue);// add auth , and isadmin later
+
    router.get("/city/:cityId",getVenueByCity);
    router.get("/:id", getVenueById);
 

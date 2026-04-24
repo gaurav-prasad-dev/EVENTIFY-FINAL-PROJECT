@@ -9,7 +9,7 @@ const {
   
 
 
-router.post("/create", auth,isAdmin, createScreen);
+router.post("/create", createScreen);//  auth,isAdmin, add later
 router.get("/venue/:venueId", getScreenByVenue);
 router.get("/:id", getScreenById);
 

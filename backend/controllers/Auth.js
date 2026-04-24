@@ -5,7 +5,7 @@ const User = require("../models/User");
 const Profile = require("../models/Profile");
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require("google-auth-library");
-
+const { sendSMS } = require("../utils/smsSender");
 
 exports.sendOtp = async(req,res) =>{
     try{
@@ -19,7 +19,16 @@ exports.sendOtp = async(req,res) =>{
       });
         }
 
-        const identifier = email || phone;
+        const identifier = email || `+91${phone}`;
+
+        const existingOtp = await Otp.findOne({ identifier });
+        if(existingOtp && existingOtp.expiresAt > new Date()){
+            return res.status(400).json({
+                success:false,
+                message:"OTP already sent. please wait"
+            })
+        }
+        await Otp.deleteMany({ identifier });
 
         const otp = otpGenerator.generate(6,{
                  upperCaseAlphabets: false,
@@ -35,10 +44,18 @@ exports.sendOtp = async(req,res) =>{
             expiresAt,
         });
 
-        await mailSender(email,
+        if(email){
+             await mailSender(email,
             "Your OTP for login",
             `<h1>Your OTP is ${otp}</h1>`
         );
+
+        }else{
+             
+        await sendSMS(identifier , otp);
+        }
+
+       
 
 
           return res.status(200).json({
@@ -61,9 +78,9 @@ exports.verifyOtp = async(req,res) =>{
 
         const{email,phone,otp} = req.body;
 
-        const identifier = email || phone;
+        const identifier = email || `+91${phone}`;
 
-        const otpRecord = await Otp.findOne({identifier});
+        const otpRecord = await Otp.findOne({ identifier });
 
         if(!otpRecord){
             return res.status(400).json({
@@ -87,16 +104,16 @@ exports.verifyOtp = async(req,res) =>{
     }
 
     //chech if user exist
-
-    let user = await User.findOne({
-        $or:[{email},{ phone }]
-    });
+const query = email ? { email } : { phone: identifier };
+    let user = await User.findOne(query);
 
 
     if(!user){
         user = await User.create({
-            email,phone,
-             role: "admin" 
+            email: email || undefined,
+            phone: phone ? identifier : undefined,
+
+             role: "User" 
         });
     
 
@@ -119,13 +136,20 @@ exports.verifyOtp = async(req,res) =>{
     );
 
     //delete otp after use
+    res.cookie("token", token,{
+        httpOnly: true,
+        secure:false,
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+
+    })
 
     await Otp.deleteOne({_id: otpRecord._id});
 
       return res.status(200).json({
       success: true,
-      token,
       user,
+      token,
     });
 
 
@@ -148,12 +172,12 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 exports.googleLogin = async(req,res) =>{
     try{
 
-        const { token } = req.body;
+        const { token: googleToken } = req.body;
 
         //Frontend sends Google token after user clicks “Login with Google”
         
         const ticket = await client.verifyIdToken({
-            idToken: token,
+            idToken: googleToken,
             audience: process.env.GOOGLE_CLIENT_ID,
         });
 
@@ -161,22 +185,43 @@ exports.googleLogin = async(req,res) =>{
 
         const { sub: googleId, email, name, picture } = payload;
 
-        let user = await User.findOne({googleId});
+        let user = await User.findOne({email});
 
-        if(!user){
-            user = await User.create({
-                email,
-                googleId,
-                isVerified:true,
-            });
+        if (user) {
+  // If user exists but no googleId, link it
+  if (!user.googleId) {
+    user.googleId = googleId;
+    await user.save();
+  }
+} else {
+  // Create new user
+  user = await User.create({
+    email,
+    googleId,
+    isVerified: true,
+  });
 
-            await Profile.create({
-                user:user._id,
-                fullName: name,
-                ProfileImage:picture,
-                isProfileComplete:false,
-            });
-        }
+  await Profile.create({
+    user: user._id,
+    fullName: name,
+    ProfileImage: picture,
+    isProfileComplete: false,
+  });
+}
+        // if(!user){
+        //     user = await User.create({
+        //         email,
+        //         googleId,
+        //         isVerified:true,
+        //     });
+
+        //     await Profile.create({
+        //         user:user._id,
+        //         fullName: name,
+        //         ProfileImage:picture,
+        //         isProfileComplete:false,
+        //     });
+        // }
 
         //generate jwt
 
@@ -187,11 +232,21 @@ exports.googleLogin = async(req,res) =>{
             process.env.JWT_SECRET,
             { expiresIn: "7d"}
         );
+          //delete otp after use
+    res.cookie("token", jwtToken,{
+        httpOnly: true,
+        secure:true,
+        sameSite: "none",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+
+    })
+
 
           return res.status(200).json({
       success: true,
-      token: jwtToken,
+   
       user,
+      token: jwtToken,
     });
 
 
@@ -201,11 +256,52 @@ exports.googleLogin = async(req,res) =>{
 
          return res.status(500).json({
       success: false,
-      message: "Google login failed",
+      message: error.message,
     });
 
     }
 }
 
+exports.logout = async(req,res) => {
+    try{
+
+      res.clearCookie("token", {
+    httpOnly: true,
+    secure: false,      // true in production
+    sameSite: "lax",
+  });
+
+        return res.status(200).json({
+            success:true,
+            message: "Logged Out Successfully",
+        });
+
+    }catch(error){
+
+        return res.status(500).json({
+      success: false,
+      message: "Logout failed",
+    });
+
+    }
+}
+
+// exports.getMe = async(req,res) => {
+//   try{
+
+//     const user = await User.findById(req.user.id).select("-password");
 
 
+//     return res.status(200).json({
+//       success: true,
+//       user,
+//     });
+
+//   }catch(error){
+//     return res.status(500).json({
+//       success: false,
+//       message: "Error fetching user",
+//     });
+
+//   }
+// }

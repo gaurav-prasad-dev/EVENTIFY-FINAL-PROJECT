@@ -13,7 +13,7 @@ const screenSchema = new mongoose.Schema({
         required:true,
     },
     
-    totalSeats:{
+    totalSeats: {
         type:Number,
         required:true,
 
@@ -24,11 +24,10 @@ const screenSchema = new mongoose.Schema({
         row:String,
         category:String,
     }],
-      sections: [{
+      sections:[{
     name: String,
     capacity: Number,
   }]
-
 
 },{timestamps: true});
 

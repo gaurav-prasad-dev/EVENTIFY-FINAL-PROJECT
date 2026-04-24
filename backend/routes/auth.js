@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const{ sendOtp, verifyOtp, googleLogin } = require("../controllers/Auth");
+const{ sendOtp, verifyOtp, googleLogin, logout } = require("../controllers/Auth");
 
 const { auth } = require("../middlewares/auth");
 
@@ -14,6 +14,11 @@ router.post("/verify-otp", verifyOtp);
 
 
 router.post("/google-login", googleLogin);
+
+router.post("/logout", logout);
+
+// router.get("/me",  getMe);
+
 
 // test protexted routes
 

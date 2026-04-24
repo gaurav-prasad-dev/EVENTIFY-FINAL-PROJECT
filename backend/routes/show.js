@@ -3,15 +3,20 @@ const router = express.Router();
 
 
 const{
-    createShow, getShowByContent, getShowById
+    createShow, getShowByContent, getShowById, getShows, getAllEvents,
+    getShowsByDate
 } = require("../controllers/showController");
 const { route } = require("./auth");
 
  const { auth, isAdmin } = require("../middlewares/auth");
   
 
-router.post("/create",auth,isAdmin, createShow);
-router.get("/content/:contentId", getShowByContent);
+router.post("/create",createShow);//auth,is admin later
+router.get("/", getShows);
+
 router.get("/:id", getShowById);
+
+
+
 
 module.exports = router;

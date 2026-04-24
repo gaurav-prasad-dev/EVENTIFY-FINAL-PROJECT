@@ -1,5 +1,8 @@
 const Content = require("../models/Content");
-
+const { getPopularMovies } = require("../services/tmdbService");
+const Show = require("../models/Show");
+const { getEventsFromAPI } = require("../services/eventService");
+const Screen = require("../models/Screen");
 
 exports.createContent = async(req,res) => {
     try{
@@ -142,3 +145,7 @@ exports.updateContent = async(req,res) =>{
 
     }
 }
+
+
+
+

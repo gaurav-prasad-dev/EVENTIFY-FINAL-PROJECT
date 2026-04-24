@@ -1,23 +1,24 @@
 const City = require("../models/City");
 
 
-
-
-
 exports.createCity = async(req,res) => {
 try{
 
     const { name,state } = req.body;
-
-    if(!name){
+   
+    if(!name|| !state){
         return res.status(400).json({
         success: false,
         message: "City name is required",
       });
 
     }
+ const nameTrimmed = name.trim();
+const stateTrimmed = state?.trim();
 
-    const existingCity = await City.findOne({name});
+    const existingCity = await City.findOne({
+  name: { $regex: new RegExp(`^${name}$`, "i") },
+    });
 
       if (existingCity) {
       return res.status(400).json({
@@ -25,10 +26,12 @@ try{
         message: "City already exists",
       });
     }
+    
 
     const city = await City.create({
-        name, 
-        state
+        name: nameTrimmed,
+  state: stateTrimmed,
+      
     });
 
        return res.status(201).json({
