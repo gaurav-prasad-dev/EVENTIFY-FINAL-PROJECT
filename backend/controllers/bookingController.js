@@ -1,54 +1,88 @@
-
 const Booking = require("../models/BookingSchema");
 const Show = require("../models/Show");
 const redisClient = require("../config/redis");
 const crypto = require("crypto");
-const razorpay = require("../config/razorpay");
-const QRCode = require("qrcode");
+const { lockSeatsLua } = require("../utils/redisScripts");
 
-const jwt = require("jsonwebtoken");
+// ==============================
+// 🔥 HELPER: RELEASE SEATS
+// ==============================
+const releaseSeats = async (showId, seats) => {
+  const pipeline = redisClient.multi();
+
+  for (const seat of seats) {
+    pipeline.del(`show:${showId}:seat:${seat}`);
+  }
+
+  await pipeline.exec();
+};
+
+// ==============================
+// 1. LOCK SEATS (SAFE + CONSISTENT)
+// ==============================
 
 exports.lockSeats = async (req, res) => {
   try {
-    const userId = req.user.id; // ✅ FIXED
+    const userId = String(req.user.id);
     const { showId, seats } = req.body;
 
-    const lockDuration = 300;
-    const lockedSeats = [];
+    const ttl = 300;
 
-    for (const seat of seats) {
-      const key = `show:${showId}:seat:${seat}`;
-
-      const result = await redisClient.set(key, userId, {
-        EX: lockDuration,
-        NX: true,
+    if (!showId || !Array.isArray(seats) || seats.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid request",
       });
-
-      if (!result) {
-        // rollback
-        for (const s of lockedSeats) {
-          await redisClient.del(`show:${showId}:seat:${s}`);
-        }
-
-        return res.status(400).json({
-          success: false,
-          message: `Seat ${seat} already locked`,
-        });
-      }
-
-      lockedSeats.push(seat);
     }
 
-    // 🔥 SOCKET
-    global.io.to(showId).emit("seat_locked", { seats: lockedSeats });
+    // ==============================
+    // 🔥 BUILD KEYS
+    // ==============================
+    const keys = seats.map(
+      (seat) => `show:${showId}:seat:${seat}`
+    );
+
+    // ==============================
+    // 🔥 LUA EXECUTION (FIXED SYNTAX)
+    // ==============================
+    const result = await redisClient.eval(lockSeatsLua, {
+      keys,
+      arguments: [userId, String(ttl)],
+    });
+
+    if (result === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "One or more seats already locked",
+      });
+    }
+
+    // ==============================
+    // 🔥 USER → SEAT MAP
+    // ==============================
+    const userLockKey = `user:${userId}:locks:${showId}`;
+
+    if (seats.length > 0) {
+      await redisClient.sAdd(userLockKey, ...seats);
+      await redisClient.expire(userLockKey, ttl);
+    }
+
+    // ==============================
+    // 🔥 SOCKET EMIT
+    // ==============================
+    global.io.to(showId).emit("seat_locked", {
+      seats,
+      userId,
+    });
 
     return res.status(200).json({
       success: true,
-      lockedSeats,
+      lockedSeats: seats,
     });
 
   } catch (error) {
-    console.log(error);
+    console.log("LOCK ERROR:", error);
+
     return res.status(500).json({
       success: false,
       message: "Seat locking failed",
@@ -56,9 +90,12 @@ exports.lockSeats = async (req, res) => {
   }
 };
 
+// ==============================
+// 2. CREATE BOOKING
+// ==============================
 exports.createBooking = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = String(req.user.id);
     const { showId, seats } = req.body;
 
     const show = await Show.findById(showId);
@@ -70,47 +107,37 @@ exports.createBooking = async (req, res) => {
       });
     }
 
-    // ✅ LOCK VALIDATION
+    // 🔥 VALIDATE LOCK
     for (const seat of seats) {
       const key = `show:${showId}:seat:${seat}`;
-
       const lockOwner = await redisClient.get(key);
 
-      if (!lockOwner) {
+      if (!lockOwner || String(lockOwner) !== userId) {
         return res.status(400).json({
           success: false,
-          message: `Seat ${seat} not locked`,
-        });
-      }
-
-      if (lockOwner !== userId) {
-        return res.status(400).json({
-          success: false,
-          message: `Seat ${seat} locked by another user`,
+          message: `Seat ${seat} lock invalid or expired`,
         });
       }
     }
 
-    // ✅ ALREADY BOOKED CHECK
-    const alreadyBooked = seats.some((seat) =>
+    // 🔥 CHECK DB BOOKED
+    const conflict = seats.some(seat =>
       show.bookedSeats.includes(seat)
     );
 
-    if (alreadyBooked) {
+    if (conflict) {
       return res.status(400).json({
         success: false,
         message: "Some seats already booked",
       });
     }
 
-    const totalAmount = seats.length * show.basePrice;
-
     const booking = await Booking.create({
       bookingId: crypto.randomBytes(6).toString("hex"),
       user: userId,
       show: showId,
       seats,
-       totalAmount,
+      totalAmount: seats.length * show.basePrice,
       bookingStatus: "Reserved",
       paymentStatus: "Pending",
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
@@ -122,7 +149,7 @@ exports.createBooking = async (req, res) => {
     });
 
   } catch (error) {
-    console.log(error);
+    console.log("CREATE ERROR:", error);
     return res.status(500).json({
       success: false,
       message: "Error creating booking",
@@ -130,151 +157,168 @@ exports.createBooking = async (req, res) => {
   }
 };
 
-
-
-exports.getMyBookings = async(req,res)=>{
-    try{
-
-        const userId = req.user.id;
-
-        const bookings = await Booking.find({ user:userId })
-        .populate("show");
-
-         return res.status(200).json({
-    success:true,
-    bookings
-   });
-
-    }catch(error){
-       console.log("❌ ERROR IN createBooking:", error); // 🔥 ADD THIS
-
-
-         return res.status(500).json({
-    success:false,
-    message:"Error fetching bookings"
-   });
-
-   
-    }
-}
-
-exports.getSeatLayout = async(req,res) =>{
-  try{
-
+// ==============================
+// 3. GET SEAT LAYOUT (OPTIMIZED)
+// ==============================
+exports.getSeatLayout = async (req, res) => {
+  try {
+    const userId = req.user?.id ? String(req.user.id) : null;
     const { showId } = req.params;
 
     const show = await Show.findById(showId);
 
-    const rows = ["A","B","C","D"];
-    const seats = [];
+    if (!show) {
+      return res.status(404).json({
+        success: false,
+        message: "Show not found",
+      });
+    }
 
-    for(let row of rows){
-      for(let i = 1;i<=10;i++){
+    const rows = ["A", "B", "C", "D"];
+    const keys = [];
+    const seatMap = [];
+
+    for (let row of rows) {
+      for (let i = 1; i <= 10; i++) {
         const seatId = `${row}${i}`;
-
-        const key = `show:${showId}:seat:${seatId}`;
-        const lock = await redisClient.get(key);
-
-        let status = "AVAILABLE";
-
-        if(show.bookedSeats.includes(seatId)){
-          status = "Booked";
-
-        }else if(lock){
-          status = "LOCKED";
-        }
-
-        seats.push({
-          id: seatId,
-          row,
-          number: i,
-          status,
-        })
+        keys.push(`show:${showId}:seat:${seatId}`);
+        seatMap.push({ seatId, row, number: i });
       }
     }
-    return res.json({ seats });
 
+    const lockValues = await redisClient.mGet(keys);
 
-  }catch(error){
+    const seats = seatMap.map((s, i) => {
+      const lockOwner = lockValues[i];
 
-    console.log(error);
+      let status = "AVAILABLE";
 
+      if (show.bookedSeats.includes(s.seatId)) {
+        status = "BOOKED";
+      } else if (lockOwner) {
+        if (userId && String(lockOwner) === userId) {
+          status = "MY_LOCKED";
+        } else {
+          status = "LOCKED";
+        }
+      }
+
+      return {
+        id: s.seatId,
+        row: s.row,
+        number: s.number,
+        status,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      seats,
+    });
+
+  } catch (error) {
+    console.log("SEAT ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching seat layout",
+    });
   }
-}
+};
 
-exports.confirmBooking = async(req,res) => {
-    try{
+// ==============================
+// 4. CONFIRM BOOKING
+// ==============================
+exports.confirmBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.body;
 
-        const { bookingId } = req.body;
-
-        const booking = await Booking.findById(bookingId);
-
-        if(!booking){
-            return res.status(404).json({
-                success:false,
-                message:"Booking not found"
-            });
-        }
-
-        if (booking.bookingStatus === "Confirmed") {
-            return res.status(400).json({
-                success: false,
-                message: "Booking already confirmed"
-            });
-        }
-
-        if (booking.expiresAt < new Date()) {
-            return res.status(400).json({
-                success: false,
-                message: "Booking expired"
-            });
-        }
-
-        const show = await Show.findById(booking.show);
-
-        // ✅ Add seats to DB
-        show.bookedSeats = [
-            ...new Set([...show.bookedSeats, ...booking.seats])
-        ];
-        await show.save();
-
-        // ✅ Remove Redis locks
-        for(const seat of booking.seats){
-            const key = `show:${booking.show}:seat:${seat}`;
-            await redisClient.del(key);
-        }
-
-        // ✅ Update booking
-        booking.bookingStatus = "Confirmed";
-        booking.paymentStatus = "Success";
-        await booking.save();
-
-        // 🔥🔥 ADD THIS HERE 🔥🔥
-        global.io.to(booking.show.toString()).emit("seat_booked", {
-            seats: booking.seats
-        });
-
-        return res.status(200).json({
-            success:true,
-            message:"Booking confirmed"
-        });
-
-    }catch(error){
-        console.log("❌ ERROR IN confirmBooking:", error);
-
-        return res.status(500).json({
-            success:false,
-            message:"Error confirming booking"
-        });
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
     }
-}
 
+    if (booking.bookingStatus === "Confirmed") {
+      return res.status(400).json({
+        success: false,
+        message: "Already confirmed",
+      });
+    }
+
+    const show = await Show.findById(booking.show);
+
+    if (!show) {
+      return res.status(404).json({
+        success: false,
+        message: "Show not found",
+      });
+    }
+
+    // 🔥 expiry check
+    if (booking.expiresAt < new Date()) {
+      await releaseSeats(booking.show, booking.seats);
+
+      booking.bookingStatus = "Cancelled";
+      await booking.save();
+
+      return res.status(400).json({
+        success: false,
+        message: "Booking expired",
+      });
+    }
+
+    // 🔥 conflict check
+    const conflict = booking.seats.some(seat =>
+      show.bookedSeats.includes(seat)
+    );
+
+    if (conflict) {
+      return res.status(400).json({
+        success: false,
+        message: "Some seats already booked",
+      });
+    }
+
+    // 🔥 book seats
+    show.bookedSeats = [
+      ...new Set([...show.bookedSeats, ...booking.seats]),
+    ];
+    await show.save();
+
+    // 🔓 release locks
+    await releaseSeats(booking.show, booking.seats);
+
+    booking.bookingStatus = "Confirmed";
+    booking.paymentStatus = "Success";
+    await booking.save();
+
+    global.io.to(booking.show.toString()).emit("seat_booked", {
+      seats: booking.seats,
+      userId: booking.user.toString(),
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Booking confirmed",
+    });
+
+  } catch (error) {
+    console.log("CONFIRM ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error confirming booking",
+    });
+  }
+};
+
+// ==============================
+// 5. GET BOOKING BY ID
+// ==============================
 exports.getBookingById = async (req, res) => {
   try {
-    const { bookingId } = req.params;
-
-    const booking = await Booking.findById(bookingId)
-      .populate("show");
+    const booking = await Booking.findById(req.params.bookingId).populate("show");
 
     if (!booking) {
       return res.status(404).json({
@@ -290,11 +334,9 @@ exports.getBookingById = async (req, res) => {
 
   } catch (error) {
     console.log("GET BOOKING ERROR:", error);
-
     return res.status(500).json({
       success: false,
       message: "Error fetching booking",
     });
   }
 };
-

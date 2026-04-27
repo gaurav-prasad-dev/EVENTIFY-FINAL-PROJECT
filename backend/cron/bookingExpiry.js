@@ -3,41 +3,51 @@ const Booking = require("../models/BookingSchema");
 const redisClient = require("../config/redis");
 
 cron.schedule("*/1 * * * *", async () => {
-  console.log("Checking expired bookings...");
-
   const now = new Date();
 
-  const expiredBookings = await Booking.find({
-    bookingStatus: "Reserved",
-    paymentStatus: "Pending",
-    expiresAt: { $lt: now }
-  });
+  try {
+    const expiredBookings = await Booking.find({
+      bookingStatus: "Reserved",
+      paymentStatus: "Pending",
+      expiresAt: { $lt: now },
+    });
 
-  for (const booking of expiredBookings) {
-    try {
-      // safety check
-      if (booking.bookingStatus !== "Reserved") continue;
+    if (expiredBookings.length === 0) return;
 
-      // remove redis locks (optimized)
-      const keys = booking.seats.map(
-        seat => `show:${booking.show}:seat:${seat}`
-      );
+    console.log(`Found ${expiredBookings.length} expired bookings`);
 
-      await redisClient.del(keys);
+    await Promise.all(
+      expiredBookings.map(async (booking) => {
+        try {
+          const keys = booking.seats.map(
+            (seat) => `show:${booking.show}:seat:${seat}`
+          );
 
-      // update booking
-      booking.bookingStatus = "Cancelled";
-      await booking.save();
+          // 🔥 FIX
+          await redisClient.del(...keys);
 
-      // notify frontend
-      global.io.to(booking.show.toString()).emit("seat_unlocked", {
-        seats: booking.seats
-      });
+          // 🔒 ATOMIC UPDATE
+          await Booking.updateOne(
+            {
+              _id: booking._id,
+              bookingStatus: "Reserved",
+              paymentStatus: "Pending",
+            },
+            { bookingStatus: "Cancelled" }
+          );
 
-      console.log(`Booking ${booking._id} cancelled due to expiry`);
+          // 🔔 SOCKET
+          global.io.to(booking.show.toString()).emit("seat_unlocked", {
+            seats: booking.seats,
+          });
 
-    } catch (err) {
-      console.log("Error processing booking:", booking._id, err);
-    }
+        } catch (err) {
+          console.log("Error processing booking:", booking._id, err);
+        }
+      })
+    );
+
+  } catch (err) {
+    console.error("CRON ERROR:", err);
   }
 });

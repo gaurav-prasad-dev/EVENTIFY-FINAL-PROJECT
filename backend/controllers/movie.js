@@ -1,4 +1,6 @@
-const { searchMovies, getMovieDetailsTime,getMovieVideos,getGenres, getNowPlaying, getPopular, getUpcoming} = require("../services/tmdbService");
+const { searchMovies, getMovieDetailsTime,getMovieVideos,getGenres, getNowPlaying, getPopular, getUpcoming, getMovieCredits,
+  getMovieReviews,
+  getMovieImages,} = require("../services/tmdbService");
 
  const formatMovie = (movie) => ({
     id: movie.id,
@@ -78,30 +80,36 @@ exports.search = async(req,res) => {
     }
 }
 
-exports.getMovieDetails = async(req,res) => {
-    try{
+exports.getMovieDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-        const {id} = req.params;
+    const [movieData, credits, reviews, images] = await Promise.all([
+      getMovieDetailsTime(id),
+      getMovieCredits(id),
+      getMovieReviews(id),
+      getMovieImages(id),
+    ]);
 
-        const movieData = await getMovieDetailsTime(id);
-        
-        const movie = formatMovie(movieData);
-        
-        return res.status(200).json({
+    const movie = formatMovie(movieData);
+
+    return res.status(200).json({
       success: true,
       movie,
+      cast: credits.cast.slice(0, 10), // 👈 top 10 cast
+      crew: credits.crew.slice(0, 5),
+      reviews: reviews.slice(0, 5),
+      posters: images.posters.slice(0, 6),
     });
 
-    }catch(error){
-
-        console.log("DETAIL ERROR:", error.message);
+  } catch (error) {
+    console.log("DETAIL ERROR:", error.message);
     return res.status(500).json({
       success: false,
       message: "Error fetching movie details",
     });
-        
-    }
-}
+  }
+};
 
 
 exports.getVideos = async(req,res) => {

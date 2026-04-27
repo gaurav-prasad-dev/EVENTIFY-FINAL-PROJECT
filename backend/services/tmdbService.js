@@ -61,11 +61,11 @@ exports.getUpcoming = async() =>{
 }
 
 
-exports.searchMovies= async() =>{
+exports.searchMovies= async(query) =>{
     try{
         const res = await tmdbClient.get("/search/movie",{
             params:{
-                query
+                query,
             },
         }
         );
@@ -80,19 +80,20 @@ exports.searchMovies= async() =>{
 }
 
 
-exports.getMovieDetailsTime = async(movieId) =>{
-    try{
-        const res = await tmdbClient.get(`/movie/${movieId}`);
-        
+exports.getMovieDetailsTime = async (movieId) => {
+  try {
+    const res = await tmdbClient.get(`/movie/${movieId}`, {
+      params: {
+        append_to_response: "videos,credits,reviews,images",
+      },
+    });
 
-        return res.data;
-
-    }catch(error){
-        console.log("TMDB Error:", error.message);
+    return res.data;
+  } catch (error) {
+    console.log("TMDB Error:", error.message);
     throw error;
-
-    }
-}
+  }
+};
 
 exports.getMovieVideos = async(movieId) =>{
     try{
@@ -122,3 +123,17 @@ exports.getGenres = async() =>{
     }
 };
 
+exports.getMovieCredits = async (movieId) => {
+  const res = await tmdbClient.get(`/movie/${movieId}/credits`);
+  return res.data;
+};
+
+exports.getMovieReviews = async (movieId) => {
+  const res = await tmdbClient.get(`/movie/${movieId}/reviews`);
+  return res.data.results;
+};
+
+exports.getMovieImages = async (movieId) => {
+  const res = await tmdbClient.get(`/movie/${movieId}/images`);
+  return res.data;
+};

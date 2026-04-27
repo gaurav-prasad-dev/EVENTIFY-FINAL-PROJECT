@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { getHomeData, getMovieDetails } from "./movieApi";
+import { getHomeData, getMovieDetails, getMovieVideos } from "./movieApi";
 
 // 🔥 THUNK 1: Home Movies
 export const fetchHomeMovies = createAsyncThunk(
@@ -14,13 +14,29 @@ export const fetchHomeMovies = createAsyncThunk(
   }
 );
 
-// 🔥 THUNK 2: Movie Details
+// 🔥 THUNK 2: Movie Details (FULL DATA)
 export const fetchMovieDetails = createAsyncThunk(
   "movies/fetchMovieDetails",
   async (movieId, thunkAPI) => {
     try {
       const res = await getMovieDetails(movieId);
-      return res.movie;
+      console.log("THUNK DATA:", res);
+      return res; // ✅ IMPORTANT: return full response
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.message);
+    }
+  }
+);
+
+// 🎥 THUNK 3: Movie Videos
+export const fetchMovieVideos = createAsyncThunk(
+  "movies/fetchMovieVideos",
+  async (movieId, thunkAPI) => {
+    try {
+      const res = await getMovieVideos(movieId);
+      console.log("VIDEOS RESPONSE:", res);
+
+      return res.trailer?.key || null; // ✅ only trailer key
     } catch (error) {
       return thunkAPI.rejectWithValue(error.message);
     }
@@ -30,7 +46,14 @@ export const fetchMovieDetails = createAsyncThunk(
 // 🧠 INITIAL STATE
 const initialState = {
   homeMovies: [],
-  movieDetails: null, // ✅ fixed
+  movieDetails: null,
+  trailerKey: null,
+
+  cast: [],
+  crew: [],
+  reviews: [],
+  posters: [],
+
   loading: false,
   error: null,
 };
@@ -63,11 +86,24 @@ const movieSlice = createSlice({
       })
       .addCase(fetchMovieDetails.fulfilled, (state, action) => {
         state.loading = false;
-        state.movieDetails = action.payload;
+
+        console.log("REDUX STORED:", action.payload);
+
+        // ✅ SPLIT DATA CORRECTLY
+        state.movieDetails = action.payload.movie;
+        state.cast = action.payload.cast || [];
+        state.crew = action.payload.crew || [];
+        state.reviews = action.payload.reviews || [];
+        state.posters = action.payload.posters || [];
       })
       .addCase(fetchMovieDetails.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+
+      // 🎬 TRAILER
+      .addCase(fetchMovieVideos.fulfilled, (state, action) => {
+        state.trailerKey = action.payload;
       });
   },
 });

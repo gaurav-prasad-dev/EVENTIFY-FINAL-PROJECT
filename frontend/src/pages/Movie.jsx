@@ -19,8 +19,8 @@ function Movie (){
 
             const res = await getHomeData();
              console.log("FULL RESPONSE:", res); // 🔥 important
-
-             setMovie(res?.data);
+               
+             setMovie(res);
 
 
         }catch(error){

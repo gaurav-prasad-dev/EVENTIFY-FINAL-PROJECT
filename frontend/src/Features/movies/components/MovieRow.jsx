@@ -1,61 +1,40 @@
+
 import MovieCard from "./MovieCard";
 import { useRef } from "react";
 
 const MovieRow = ({ title, movies }) => {
+  const scrollRef = useRef();
 
-    const scrollRef = useRef();
+  return (
+    <div className="px-6 py-8 relative">
 
-    // const scrollLeft = () => {
-    //     scrollRef.current.scrollBy({
-    //         left: -500,
-    //         behaviour: "smooth",
-    //     })
-    // }
+      {/* SECTION HEADER */}
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-xl md:text-2xl font-semibold text-gray-900">
+          {title}
+        </h2>
 
-    // const scrollRight = () => {
-    //     scrollRef.current.scrollBy({
-    //         left:500,
-    //         behaviour: "smooth",
-    //     });
-    // }
+        <button className="text-sm text-red-500 hover:underline">
+          See All
+        </button>
+      </div>
 
-    return(
-        <div className="px-6 py-6">
-            {/* sectionTitle */}
-            <h2 className="text-2xl font-semibold mb-4">
-                {title}
-            </h2>
-
-             {/* Left Button */}
-      {/* <button
-        onClick={scrollLeft}
-        className="absolute left-2 top-1/2 z-10 bg-white/80 p-2 rounded-full shadow"
+      {/* MOVIE SCROLLER */}
+      <div
+        ref={scrollRef}
+        className="flex gap-8 overflow-x-auto scroll-smooth scrollbar-hide pb-2"
       >
-        ◀
-      </button> */}
+        {movies?.map((movie) => (
+          <div key={movie.id} className="flex-shrink-0">
+            <MovieCard movie={movie} />
+          </div>
+        ))}
+      </div>
 
-            {/* grid */}
-            <div 
-            ref={scrollRef}
-            className="flex gap-4 overflow-x-auto scroll-smooth scrollbar-hide">
-{movies?.map((movie) => (
-    <MovieCard key={movie.id}  movie={movie}/>
-
-))}
-            </div>
-
-             {/* Right Button */}
-      {/* <button
-        onClick={scrollRight}
-        className="absolute right-2 top-1/2 z-10 bg-white/80 p-2 rounded-full shadow"
-      >
-        ▶
-      </button> */}
-
-        </div>
-
-        
-    )
-}
+      {/* FADE EFFECT (Right Side) */}
+      <div className="pointer-events-none absolute top-0 right-0 h-full w-16 bg-gradient-to-l from-white to-transparent" />
+    </div>
+  );
+};
 
 export default MovieRow;

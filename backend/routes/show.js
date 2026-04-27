@@ -3,8 +3,7 @@ const router = express.Router();
 
 
 const{
-    createShow, getShowByContent, getShowById, getShows, getAllEvents,
-    getShowsByDate
+    createShow,  getShowById, getShows, 
 } = require("../controllers/showController");
 const { route } = require("./auth");
 

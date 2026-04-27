@@ -26,7 +26,7 @@ function Location() {
   const fetchCities = async () => {
     try {
       const res = await getCities();
-      setCities(res.data.cities);
+      setCities(res.cities);
     } catch (error) {
       console.log(error);
     }
@@ -34,7 +34,7 @@ function Location() {
 
   const handleSelect = (city) => {
     // ✅ Redux update
-    dispatch(setCity(city));
+    dispatch(setCity(city.name));
 
     setOpen(false);
 
@@ -59,9 +59,9 @@ function Location() {
         <IoLocationOutline className="text-xl text-purple-500" />
         <div>
           <p className="font-semibold">
-            {selectedCity?.name || "Select City"}
+            {selectedCity || "Select City"}
           </p>
-          <p>{selectedCity?.state}</p>
+     
         </div>
       </div>
 

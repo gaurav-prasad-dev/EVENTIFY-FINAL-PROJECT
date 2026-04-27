@@ -1,0 +1,19 @@
+
+
+services:
+  backend:
+    build: .
+    container_name: backend
+    ports:
+      - "4000:4000"
+    depends_on:
+      - redis
+    environment:
+      - MONGO_URI=mongodb://ggaurav:gaurav264@ac-ueiynge-shard-00-00.syslkgx.mongodb.net:27017,ac-ueiynge-shard-00-01.syslkgx.mongodb.net:27017,ac-ueiynge-shard-00-02.syslkgx.mongodb.net:27017/EVNTIFY?ssl=true&replicaSet=atlas-y8jd2g-shard-0&authSource=admin&appName=Cluster0
+      - REDIS_URL=redis://redis:6379
+
+  redis:
+    image: redis
+    container_name: redis
+    ports:
+      - "6379:6379"

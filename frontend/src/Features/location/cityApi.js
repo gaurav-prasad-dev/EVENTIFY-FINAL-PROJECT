@@ -1,18 +1,14 @@
-import { apiConnector } from "../../services/apiConnector";
-import { cityEndpoints } from "../../services/apis";
+import apiClient from "../../services/apiClient";
+import { ENDPOINTS } from "../../services/apis";
 
+const { GET_ALL } = ENDPOINTS.CITY;
 
-const { GET_CITIES_API } = cityEndpoints;
-
-
-export const getCities = async() => {
-    try{
-
-        const res = await apiConnector("GET", GET_CITIES_API);
-        return res;
-
-    }catch(error){
-         console.log("GET CITIES ERROR:", error);
-
-    }
-}
+export const getCities = async () => {
+  try {
+    const res = await apiClient.get(GET_ALL);
+    return res.data;
+  } catch (error) {
+    console.log("GET CITIES ERROR:", error);
+    throw error;
+  }
+};

@@ -18,6 +18,13 @@ const screenSchema = new mongoose.Schema({
         required:true,
 
     },
+     // ✅ ADD THIS
+  features: [
+    {
+      type: String,
+      enum: ["Recliner", "Wheelchair", "Premium"],
+    },
+  ],
 
     seatLayout:[{
         seatNumber:String,

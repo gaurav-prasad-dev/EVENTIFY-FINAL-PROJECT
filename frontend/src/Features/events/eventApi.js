@@ -1,17 +1,14 @@
-import { apiConnector } from "../../services/apiConnector";
-import { eventEndpoints } from "../../services/apis";
+import apiClient from "../../services/apiClient";
+import { ENDPOINTS } from "../../services/apis";
 
+const { GET_EVENTS } = ENDPOINTS.EVENTS;
 
-const { GET_EVENTS_API} = eventEndpoints;
-
-export const getEventData = async() => {
-    try{
-
-        const res = await apiConnector("GET", GET_EVENTS_API);
-        return res.data;
-
-    }catch(error){
-           console.log("GET Events ERROR:", error);
-  throw error; // 🔥 important
-    }
-}
+export const getEventData = async () => {
+  try {
+    const res = await apiClient.get(GET_EVENTS);
+    return res.data;
+  } catch (error) {
+    console.log("GET EVENTS ERROR:", error);
+    throw error;
+  }
+};

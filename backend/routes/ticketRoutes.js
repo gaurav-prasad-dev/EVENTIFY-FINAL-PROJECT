@@ -4,8 +4,10 @@ const router = express.Router();
 
 const { scanTicket,downloadTicket } = require("../controllers/ticketController");
 
-router.post("/scan-ticket", scanTicket);
-router.get("/download/:bookingId", downloadTicket);
+  const { auth, isAdmin } = require("../middlewares/auth");
+   
+router.post("/scan-ticket",auth, isAdmin,scanTicket);
+router.get("/download/:bookingId",auth, downloadTicket);
 
 
 

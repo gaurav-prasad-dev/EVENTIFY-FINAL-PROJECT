@@ -3,9 +3,9 @@ import { root } from "postcss";
 import locationReduer from "../Features/location/locationTimeSlice";
 import authReducer from "../Features/auth/authSlice";
 import movieReducer from "../Features/movies/movieSlice";
-import showsReducer from "../Features/booking/showSlice";
+import showsReducer from "../Features/show/showSlice";
 import bookingReducer from "../Features/booking/bookSlice";
-import paymentReducer from "../Features/booking/paymentTimeSlice"
+import paymentReducer from "../Features/payment/paymentTimeSlice"
 
 const rootReducer = combineReducers({
     location: locationReduer,
@@ -14,7 +14,6 @@ const rootReducer = combineReducers({
     shows: showsReducer,
     booking: bookingReducer,
     payment: paymentReducer,
-
 
 });
 

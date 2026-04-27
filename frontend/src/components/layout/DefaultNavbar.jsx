@@ -2,6 +2,9 @@ import { NavLink } from "react-router-dom";
 import logo from "../../image/logo2.png"
 import UserSection from "../../Features/user/components/UserSection";
 import Location from "../../Features/location/components/Location";
+
+
+
 const DefaulNavbar = ({ user, setOpen, setOpenLogin }) => {
 
   const navItems = [

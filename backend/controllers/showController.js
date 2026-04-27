@@ -2,157 +2,15 @@ const Show = require("../models/Show");
 const Content = require("../models/Content");
 const Screen = require("../models/Screen");
 const City = require("../models/City");
+const Venue = require("../models/Venue");
 const mongoose = require("mongoose");
+const {  getAvailability } = require("../utils/availability");
 
-
-
-// exports.createShow = async(req,res) => {
-
-//     try{
-
-//         const { content, screen, dates, showTimes, basePrice } = req.body;
-
-//         const contentExist = await Content.findById(content);
-
-        
-//          if (!contentExist) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Content not found"
-//       });
-//     }
-
-//     const createdShows = [];
-
-//     for(let screenId of screen){
-
-//       const screenExist = await Screen.findById(screenId);
-
-//       if(!screenExist) continue;
-
-//       for(let date of dates){
-
-//         const showDate = new Date(date);
-
-//         for(let time of showTimes){
-
-//           //prevent duplicates
-//           const alreadyExists = await Show.findOne({
-//             content,
-//             screen: screenId,
-//             showDate,
-//             startTime: time.startTime
-//           });
-
-//           if(alreadyExists) continue;
-
-//           const show = await Show.create({
-//             content,
-//             screen: screenId,
-//             showDate,
-//             startTime: time.startTime,
-//             endTime: time.endTime,
-//             basePrice,
-//           })
-
-//           createdShows.push(show);
-
-//         }
-
-//       }
-//     }
-
-//      return res.status(201).json({
-//       success: true,
-//       message: "Multiple shows created successfully",
-//       count: createdShows.length,
-//       data: createdShows,
-//     });
-
-    
-
-    
-  
-
-   
-   
-
-//     }catch(error){
-
-//          return res.status(500).json({
-//       success: false,
-//       message: error.message
-//     });
-//     }
-// }
-
-// exports.createShow = async (req, res) => {
-//   try {
-//     let { movieId, screen,  showTimes, basePrice } = req.body;
-
-//     // ✅ HANDLE SINGLE VALUE
-//     const screensArray = Array.isArray(screen) ? screen : [screen];
-//     // const datesArray = Array.isArray(dates) ? dates : [dates];
-//     const timesArray = Array.isArray(showTimes) ? showTimes : [showTimes];
-
-//     const createdShows = [];
-
-//     for (let screenId of screensArray) {
-
-//       const screenData = await Screen.findById(screenId).populate({
-//         path:"venue",
-//         populate:{ path: "city"},
-//       });
-
-//       if(!screenData)continue;
-
-//       const cityName = screenData.venue.city.name;
-//       for (let date of datesArray) {
-//         const showDate = new Date(date);
-        
-// showDate.setHours(0, 0, 0, 0);  // 🔥 FIX
-
-//         for (let time of timesArray) {
-//           const show = await Show.create({
-//             movieId,
-//             screen: screenId,
-//             city: cityName,
-//             showDate,
-//             startTime: time.startTime,
-//             endTime: time.endTime,
-//             basePrice,
-//           });
-
-//           createdShows.push(show);
-//         }
-//       }
-//     }
-
-//     return res.status(201).json({
-//       success: true,
-//       message: "Shows created",
-//       count: createdShows.length,
-//       data: createdShows,
-//     });
-
-//   } catch (error) {
-//     console.log("🔥 ERROR:", error);
-
-//     return res.status(500).json({
-//       success: false,
-//       message: error.message,
-//     });
-//   }
-// };
-
-
-
-// getshowsmain api
-
+const { getTimeCategory } = require("../utils/timeCategory");
 
 exports.createShow = async (req, res) => {
   try {
-    let { movieId, screen, showTimes, basePrice } = req.body;
+    let { movieId, screen, showTimes, basePrice, features } = req.body;
 
     const screensArray = Array.isArray(screen) ? screen : [screen];
     const timesArray = Array.isArray(showTimes) ? showTimes : [showTimes];
@@ -168,38 +26,50 @@ exports.createShow = async (req, res) => {
 
       if (!screenData) continue;
 
-      const cityName = screenData.venue.city.name;
+      const cityId = screenData.venue.city._id;
 
-      // 🔥 AUTO GENERATE NEXT 5 DAYS
+      // 🔥 next 5 days
       for (let i = 0; i < 5; i++) {
-        const showDate = new Date();
-        showDate.setDate(showDate.getDate() + i);
-        showDate.setHours(0, 0, 0, 0);
+        const baseDate = new Date();
+        baseDate.setDate(baseDate.getDate() + i);
+        baseDate.setHours(0, 0, 0, 0);
 
-        for (let time of timesArray) {
+    for (let time of timesArray) {
 
-          // ✅ prevent duplicates
-          const exists = await Show.findOne({
-            movieId,
-            screen: screenId,
-            showDate,
-            startTime: time.startTime,
-          });
+  const startTime = new Date(baseDate);
+  const [sh, sm] = time.startTime.split(":");
+  startTime.setHours(parseInt(sh), parseInt(sm), 0, 0);
 
-          if (exists) continue;
+  const endTime = new Date(baseDate);
+  const [eh, em] = time.endTime.split(":");
+  endTime.setHours(parseInt(eh), parseInt(em), 0, 0);
 
-          const show = await Show.create({
-            movieId,
-            screen: screenId,
-            city: cityName,
-            showDate,
-            startTime: time.startTime,
-            endTime: time.endTime,
-            basePrice,
-          });
+  const exists = await Show.findOne({
+    movieId,
+    screen: screenId,
+    showDate: baseDate,
+    startTime: {
+      $gte: new Date(startTime.getTime() - 60000),
+      $lte: new Date(startTime.getTime() + 60000),
+    },
+  });
 
-          createdShows.push(show);
-        }
+  if (exists) continue;
+
+  const show = await Show.create({
+    movieId,
+    screen: screenId,
+    city: cityId,
+    showDate: baseDate,
+    startTime,
+    endTime,
+    basePrice,
+    timeCategory: getTimeCategory(startTime), // ✅ FIXED
+    features: features || screenData.features || [],
+  });
+
+  createdShows.push(show);
+}
       }
     }
 
@@ -211,7 +81,7 @@ exports.createShow = async (req, res) => {
     });
 
   } catch (error) {
-    console.log("🔥 ERROR:", error);
+    console.log("CREATE SHOW ERROR:", error);
 
     return res.status(500).json({
       success: false,
@@ -220,20 +90,19 @@ exports.createShow = async (req, res) => {
   }
 };
 
+// exports.getShows = async (req, res) => {
+//   try {
+//     const { movieId, city, date, time, features } = req.query;
 
-// exports.getShows = async(req,res) =>{
-//   try{
-
-//     const { movieId, city, date} = req.query;
-
-//      if (!movieId || !city || !date) {
+//     if (!movieId || !city || !date) {
 //       return res.status(400).json({
 //         success: false,
 //         message: "movieId, city, date required",
 //       });
 //     }
 
-//    const selectedDate = new Date(date + "T00:00:00");
+//     // ✅ date range
+//     const selectedDate = new Date(date + "T00:00:00");
 
 //     const start = new Date(selectedDate);
 //     start.setHours(0, 0, 0, 0);
@@ -241,91 +110,168 @@ exports.createShow = async (req, res) => {
 //     const end = new Date(selectedDate);
 //     end.setHours(23, 59, 59, 999);
 
-//     const shows = await Show.find({
+//     // ✅ query
+//     const query = {
 //       movieId: Number(movieId),
-      
-//       showDate: { $gte: start, $lte: end},
-//       status:"Active",
+//       status: "Active",
+//       showDate: { $gte: start, $lte: end },
+//     };
 
-//     }).populate({
-//       path: "screen",
-//       populate: {path: "venue",
-//         populate: {path: "city"},
-//       },
+//     // city filter
+//     if (city) {
+//       query.city = { $regex: new RegExp(`^${city}$`, "i") };
+//     }
 
-//     });
-//     console.log("START:", start);
-// console.log("END:", end);
-// console.log("DB DATE:", shows[0]?.showDate);
+//     // time filter
+//     if (time) {
+//       query.timeCategory = time;
+//     }
 
-//     const filteredShows = shows.filter(
-//       (s) => s.screen?.venue?.city?.name?.toLowerCase() === city.toLowerCase()
-//     );
+//     // feature filter
+//     if (features) {
+//       query.features = { $all: features.split(",") };
+//     }
 
+//     const shows = await Show.find(query)
+//       .populate({
+//         path: "screen",
+//         populate: {
+//           path: "venue",
+//           populate: { path: "city" },
+//         },
+//       })
+//       .sort({ startTime: 1 });
 
+//     // ✅ grouping
+//     const grouped = {};
 
-//     const grouped ={};
+//     shows.forEach((show) => {
+//       const screen = show.screen;
+//       const venue = screen?.venue;
 
-//     filteredShows.forEach((show) =>{
-//       const venue = show.screen.venue;
-//  const venueId = venue._id.toString();
-//       if(!grouped[venue._id]){
-//         grouped[venue._id] = {
+//       if (!screen || !venue) return;
+
+//       const venueId = venue._id.toString();
+
+//       if (!grouped[venueId]) {
+//         grouped[venueId] = {
 //           theatreName: venue.name,
+//           logo: venue.logo || null,
+//           distance: venue.distance || null,
 //           shows: [],
-//         }
+//         };
 //       }
 
-//       grouped[venueId].shows.push({
-//         time: show.startTime,
-//         showId: show._id,
-//       })
-//     })
+//       const totalSeats = screen.totalSeats || 0;
+//       const bookedSeats = show.bookedSeats?.length || 0;
 
-//      return res.status(200).json({
+//       grouped[venueId].shows.push({
+//         showId: show._id,
+//         time: show.startTime
+//     ? new Date(show.startTime).toISOString()
+//     : null, // ✅ prevent crash
+//         screenName: screen.name,
+
+//         // ✅ USING HELPER
+//         availability: getAvailability(totalSeats, bookedSeats),
+//       });
+//     });
+
+//     return res.status(200).json({
 //       success: true,
 //       data: Object.values(grouped),
 //     });
 
-//   }catch(error){
-// console.log(error);
-//     res.status(500).json({ success: false });
+//   } catch (error) {
+//     console.log("GET SHOWS ERROR:", error);
 
-//   }
-// }
-
-
-
-// exports.getShowByContent = async(req,res) => {
-//     try{
-
-//         const { contentId } = req.params;
-
-//         const shows = await Show.find({
-//             content: contentId,
-//             status:"Active",
-//         })
-//         .populate("screen")
-//         .populate("content")
-
-//          return res.status(200).json({
-//       success: true,
-//       shows,
-//     });
-
-
-//     }catch(error){
-
-        
-//    return res.status(500).json({
+//     return res.status(500).json({
 //       success: false,
-//       message: "Error fetching shows"
+//       message: "Failed to fetch shows",
+//     });
+//   }
+// };
+
+
+
+// =======================================================
+// 1. GET SHOW BY ID (FOR SEAT BOOKING PAGE)
+// =======================================================
+// make sure imported
+// exports.getShows = async (req, res) => {
+//   try {
+//     const { movieId, city, date } = req.query;
+
+//     if (!movieId || !city || !date) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "movieId, city, date required",
+//       });
+//     }
+
+//     // 📅 Date range
+//     const selectedDate = new Date(date + "T00:00:00");
+
+//     const start = new Date(selectedDate);
+//     start.setHours(0, 0, 0, 0);
+
+//     const end = new Date(selectedDate);
+//     end.setHours(23, 59, 59, 999);
+
+//     // 🏙️ City lookup
+//     const cityDoc = await City.findOne({
+//       name: { $regex: new RegExp(`^${city}$`, "i") },
 //     });
 
+//     if (!cityDoc) {
+//       return res.status(200).json({
+//         success: true,
+//         data: [],
+//       });
 //     }
-// }
 
+//     // 🎬 Fetch shows
+//     const shows = await Show.find({
+//       movieId: Number(movieId),
+//       city: cityDoc._id,
+//       showDate: { $gte: start, $lte: end },
+//       status: "Active",
+//     })
+//       .populate({
+//         path: "screen",
+//         populate: {
+//           path: "venue",
+//           populate: { path: "city" },
+//         },
+//       })
+//       .sort({ startTime: 1 });
 
+//     // ✅ FINAL FORMAT (STRICT)
+//     const formattedShows = shows.map((show) => ({
+//       showId: String(show._id), // 🔥 IMPORTANT
+//       time: show.startTime,
+//       date: show.showDate,
+
+//       theatreName: show.screen?.venue?.name || "",
+//       screenName: show.screen?.name || "",
+
+//       city: show.screen?.venue?.city?.name || "",
+//     }));
+
+//     return res.status(200).json({
+//       success: true,
+//       data: formattedShows,
+//     });
+
+//   } catch (error) {
+//     console.log("GET SHOW ERROR:", error);
+
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch shows",
+//     });
+//   }
+// };
 exports.getShows = async (req, res) => {
   try {
     const { movieId, city, date } = req.query;
@@ -337,6 +283,7 @@ exports.getShows = async (req, res) => {
       });
     }
 
+    // 📅 Date range
     const selectedDate = new Date(date + "T00:00:00");
 
     const start = new Date(selectedDate);
@@ -345,13 +292,79 @@ exports.getShows = async (req, res) => {
     const end = new Date(selectedDate);
     end.setHours(23, 59, 59, 999);
 
+    // 🏙️ City lookup
+    const cityDoc = await City.findOne({
+      name: { $regex: new RegExp(`^${city}$`, "i") },
+    });
+
+    if (!cityDoc) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+      });
+    }
+
+    // 🎬 Fetch shows
     const shows = await Show.find({
       movieId: Number(movieId),
-      
-      city: { $regex: new RegExp(`^${city}$`, "i") },
-       showDate: { $gte: start, $lte: end },
+      city: cityDoc._id,
+      showDate: { $gte: start, $lte: end },
       status: "Active",
-    }).populate({
+    })
+      .populate({
+        path: "screen",
+        populate: {
+          path: "venue",
+          populate: { path: "city" },
+        },
+      })
+      .sort({ startTime: 1 });
+
+    // ✅ GROUP BY THEATRE (THIS IS THE KEY FIX)
+    const grouped = {};
+
+    shows.forEach((show) => {
+      const venue = show.screen?.venue;
+      const screen = show.screen;
+
+      if (!venue || !screen) return;
+
+      const venueId = venue._id.toString();
+
+      if (!grouped[venueId]) {
+        grouped[venueId] = {
+          theatreName: venue.name,
+          shows: [],
+        };
+      }
+
+      grouped[venueId].shows.push({
+        showId: String(show._id),
+        time: show.startTime,
+        date: show.showDate,
+        screenName: screen.name,
+      });
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: Object.values(grouped),
+    });
+
+  } catch (error) {
+    console.log("GET SHOW ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch shows",
+    });
+  }
+};
+exports.getShowById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const show = await Show.findById(id).populate({
       path: "screen",
       populate: {
         path: "venue",
@@ -359,71 +372,10 @@ exports.getShows = async (req, res) => {
       },
     });
 
-    const grouped = {};
-
-    shows.forEach((show) => {
-      const venue = show.screen?.venue;
-      const screen = show.screen;
-      if (!venue || !screen) return;
-
-      const venueId = venue._id.toString();
-      const screenId = screen._id.toString();
-
-
-      if (!grouped[venueId]) {
-        grouped[venueId] = {
-          theatreName: venue.name,
-          screens: {},
-        };
-      }
-
-
-  if (!grouped[venueId].screens[screenId]) {
-    grouped[venueId].screens[screenId] = {
-      screenName: screen.name,
-      shows: [],
-    };
-  }
-
-      grouped[venueId].screens[screenId].shows.push({
-        time: show.startTime,
-        showId: show._id,
-      });
-    });
-
-    return res.status(200).json({
-      success: true,
-      data: Object.values(grouped).map((venue) => ({
-  theatreName: venue.theatreName,
-  screens: Object.values(venue.screens),
-}))
-    });
-
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ success: false });
-  }
-};
-
-exports.getShowById = async(req,res) => {
-    try{
-
-        const { id } = req.params;
-
-        const show = await Show.findById(id)
-        
-        .populate({
-            path:"screen",
-            populate:{
-                path:"venue"
-            }
-        });
-
-
-         if (!show) {
+    if (!show) {
       return res.status(404).json({
         success: false,
-        message: "Show not found"
+        message: "Show not found",
       });
     }
 
@@ -432,170 +384,69 @@ exports.getShowById = async(req,res) => {
       data: show,
     });
 
+  } catch (error) {
+    console.log("GET SHOW BY ID ERROR:", error);
 
-
-
-    }catch(error){
-
-         return res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Error fetching show"
+      message: "Error fetching show",
     });
+  }
+};
 
-    }
-}
+
+// =======================================================
+// 2. GET ALL SHOWS (ADMIN / DEBUG)
+// =======================================================
 
 exports.getAllShows = async (req, res) => {
   try {
+    const { city, date } = req.query;
 
-    const { city,date } = req.query;
+    let query = {};
 
-    let shows;
-    if(city){
-       const venues = await Venue.find({ city });
-       if (venues.length === 0) {
-    return res.status(200).json({
-      success: true,
-      shows: [],
-    });
-  }
-       
-       const venueIds = venues.map(v => v._id);
+    // ✅ date filter (optional)
+    if (date) {
+      const start = new Date(date);
+      start.setHours(0, 0, 0, 0);
 
-       shows = await Show.find({
-         venue: { $in: venueIds }
-       })
-       .populate("content")
-       .populate({
-        path:"venue",
-        populate: { path: "city"}
-       });
+      const end = new Date(date);
+      end.setHours(23, 59, 59, 999);
 
-      
-    }else{
-      shows = await Show.find()
-      .populate("content")
-      .populate({
-        path: "venue",
-        populate: { path: "city"}
-      })
+      query.showDate = { $gte: start, $lte: end };
     }
 
-    res.status(200).json({
+    // ✅ fetch shows with full population
+    let shows = await Show.find(query)
+      .populate({
+        path: "screen",
+        populate: {
+          path: "venue",
+          populate: { path: "city" },
+        },
+      })
+      .sort({ startTime: 1 });
+
+    // ✅ city filter (AFTER populate because city is nested)
+    if (city) {
+      shows = shows.filter((show) => {
+        const venueCity = show.screen?.venue?.city?.name;
+        return venueCity?.toLowerCase() === city.toLowerCase();
+      });
+    }
+
+    return res.status(200).json({
       success: true,
-      shows,
+      count: shows.length,
+      data: shows,
     });
 
+  } catch (error) {
+    console.log("GET ALL SHOWS ERROR:", error);
 
-  }catch(error){
-
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Error fetching shows",
     });
-
   }
-  
 };
-
-// exports.getAllEvents = async(req,res) =>{
-//   try{
-
-//     const shows = await Show.find()
-//  .populate("content");
-//      const events = shows.filter(
-//       (show) => show.content?.type === "Event"
-//      );
-//     //  const eventContents = events.map(show => show.content);
-// res.status(200).json({ success: true, data: events});
-//   }catch(error){
-//     console.error("Error fetching events:", err);
-//     res.status(500).json({ success: false, message: "Server Error" });
-
-//   }
-// }
-
-
-// exports.getShowsByDate = async (req, res) => {
-//   try {
-//     const { date, contentId } = req.query;
-
-//     // Validate inputs
-//     if (!date || !contentId) {
-//       return res.status(400).json({ success: false, message: "Missing date or contentId" });
-//     }
-
-//     if (!mongoose.Types.ObjectId.isValid(contentId)) {
-//       return res.status(400).json({ success: false, message: "Invalid contentId" });
-//     }
-
-//     // Parse date
-//     const parsedDate = new Date(date);
-//     if (isNaN(parsedDate)) {
-//       return res.status(400).json({ success: false, message: "Invalid date" });
-//     }
-
-//     // Create a date range for the entire day in local timezone
-//     const start = new Date(parsedDate);
-//     start.setHours(0, 0, 0, 0);
-
-//     const end = new Date(parsedDate);
-//     end.setHours(23, 59, 59, 999);
-
-//     // Query shows for this content on that date and status Active
-//     const shows = await Show.find({
-//       content: contentId,
-//       showDate: { $gte: start, $lte: end },
-//       status: "Active",
-//     })
-//       .populate("content")  // Include movie/event info
-//       .populate("screen");  // Include screen info
-
-//     return res.status(200).json({
-//       success: true,
-//       data: shows,
-//     });
-//   } catch (error) {
-//     console.error("🔥 ERROR IN getShowsByDate:", error);
-//     return res.status(500).json({ success: false, message: "Server error" });
-//   }
-// };
-
-// exports.getShowsByCity = async(req,res) => {
-//   try{
-
-//     const {city} = req.query;
-
-//     //find venue inn that city
-     
-//     const venues = await Venue.find({ city });
-
-//     const venueIds = venues.map(v => v._id);
-
-//     //find shows in those events
-
-//     const shows = await Show.find({
-//       venue: {$in: venueIds}
-//     })
-//     .populate("content")
-//     .populate({
-//       path:"venue",
-//       populate: {path: "city"}
-//     });
-//      res.status(200).json({
-//       success: true,
-//       shows,
-//     });
-
-
-
-
-//   }catch(error){
-
-//       res.status(500).json({
-//       success: false,
-//       message: "Error fetching shows",
-//     });
-
-//   }
-// }

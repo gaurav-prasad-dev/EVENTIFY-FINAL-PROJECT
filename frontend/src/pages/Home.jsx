@@ -1,112 +1,76 @@
-import { useState,useEffect } from "react";
-import { getHomeData } from "../Features/movies/movieApi"
-import { data } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { getHomeData } from "../Features/movies/movieApi";
 import MovieRow from "../Features/movies/components/MovieRow";
-import { getEventData } from "../Features/events/eventApi"
+import { getEventData } from "../Features/events/eventApi";
 import EventR from "../Features/events/components/EventR";
-function Home(){
+import Footer from "../components/common/Footer";
 
-    const [movies, setMovies] = useState(null);
-    const[events,setEvents] = useState(null);
-  
-    useEffect(() =>{
-        fetchEvents();
-        fetchHome();
-    },[]);
+function Home() {
+  const [movies, setMovies] = useState(null);
+  const [events, setEvents] = useState(null);
 
+  useEffect(() => {
+    fetchEvents();
+    fetchHome();
+  }, []);
 
-
-    const fetchEvents = async() =>{
-        try{
-            const res = await getEventData();
-            console.log("FULL RESPONSE:", res); // 🔥 important
-            setEvents(res);
-            console.log("POPULAR MOVIE:", movies?.popular?.[0]);
-            console.log(events);
-
-
-        }catch(error){
-             console.log(error);
-
-        }
+  const fetchEvents = async () => {
+    try {
+      const res = await getEventData();
+      setEvents(res);
+    } catch (error) {
+      console.log(error);
     }
+  };
 
-    const fetchHome = async() => {
-        try{
+  const fetchHome = async () => {
+    try {
+      const res = await getHomeData();
+      setMovies(res);
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
-            const res = await getHomeData();
-               console.log("FULL RESPONSE:", res); // 🔥 important
-
-            setMovies(res?.data);
-            console.log("POPULAR MOVIE:", movies?.popular?.[0]);
-            console.log(movies);
-
-         
-
-            
-        }catch(error){
-
-            console.log(error);
-        }
-
-     
-
-              // 🔄 Loading
-  if (!movies || !events) {
+  if (!movies) {
     return (
-      <div className="h-screen flex items-center justify-center text-xl">
-        Loading...
+      <div className="h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-lg animate-pulse text-gray-600">
+          Loading amazing content...
+        </div>
       </div>
     );
   }
 
+  return (
+    <div className="bg-gray-50 min-h-screen">
 
+      {/* HERO SPACING (important for navbar overlap) */}
+      <div className="h-[70px]" />
+
+      {/* MAIN CONTENT */}
+      <div className="max-w-[1400px] mx-auto">
+
+        {/* MOVIES */}
+        <div className="space-y-10">
+          <MovieRow title="🔥 Top Movies Near You" movies={movies?.nowPlaying} />
+          <MovieRow title="⭐ Popular Movies" movies={movies?.popular} />
+          <MovieRow title="🎬 Upcoming Movies" movies={movies?.upcoming} />
+        </div>
+
+        {/* EVENTS */}
+        <div className="mt-14 space-y-10">
+          <EventR title="🎵 Music Events" events={events?.music} />
+          <EventR title="🏏 Sports Events" events={events?.sports} />
+          <EventR title="😂 Comedy Shows" events={events?.comedy} />
+        </div>
+
+      </div>
+
+      {/* FOOTER */}
+      <Footer />
+    </div>
+  );
 }
-    return(
-        <>
-
-
-<div className="bg-gray-100 min-h-screen">
-    <MovieRow title="Top Movies Near you"
-     movies={movies?.nowPlaying}/>
-
-     <EventR 
-  title="🎵 Music Events" 
-  events={events?.music} 
-/>
-
-
- <MovieRow
-        title="Popular Movies" 
-        movies={movies?.popular} 
-      />
-
-
-<EventR
-  title="🏏 Sports Events" 
-  events={events?.sports} 
-/>
-
-       <MovieRow
-        title="Upcoming Movies" 
-        movies={movies?.upcoming} 
-      />
-
-      <EventR
-  title="😂 Comedy Shows" 
-  events={events?.comedy} 
-/>
-</div>
-       
-</>
-
-    )
-}
-
-
-
-
-
-
 
 export default Home;

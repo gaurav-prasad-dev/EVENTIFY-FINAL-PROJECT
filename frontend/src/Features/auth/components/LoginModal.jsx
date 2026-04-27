@@ -1,15 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { FcGoogle } from "react-icons/fc";
-import { sendOtpApi, verifyOtpApi,googleLoginApi } from "../authApi";
 import { GoogleLogin } from "@react-oauth/google";
 import { useDispatch } from "react-redux";
 import { setCredentials } from "../authSlice";
-
+import { sendOtpApi, verifyOtpApi, googleLoginApi } from "../authApi";
 
 function LoginModal({ isOpen, onClose }) {
-
   const dispatch = useDispatch();
-  
+
   const [mode, setMode] = useState("email");
   const [step, setStep] = useState("input");
   const [value, setValue] = useState("");
@@ -19,9 +16,18 @@ function LoginModal({ isOpen, onClose }) {
 
   const inputRefs = useRef([]);
 
-  
+  // ✅ RESET WHEN MODAL CLOSES
+  useEffect(() => {
+    if (!isOpen) {
+      setStep("input");
+      setValue("");
+      setOtp(["", "", "", "", "", ""]);
+      setTimer(30);
+      setMode("email");
+    }
+  }, [isOpen]);
 
-  // 🔥 Timer logic
+  // 🔥 Timer
   useEffect(() => {
     if (step === "otp" && timer > 0) {
       const interval = setInterval(() => {
@@ -32,8 +38,14 @@ function LoginModal({ isOpen, onClose }) {
   }, [step, timer]);
 
   if (!isOpen) return null;
-  // 🔥 Send OTP
+
+  // 🔥 SEND OTP
   const handleSendOtp = async () => {
+    if (!value.trim()) {
+      alert("Please enter email or phone");
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -47,13 +59,14 @@ function LoginModal({ isOpen, onClose }) {
       setStep("otp");
       setTimer(30);
     } catch (err) {
+      console.log(err);
       alert("Failed to send OTP");
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔥 Handle OTP input
+  // 🔢 OTP INPUT
   const handleOtpChange = (e, index) => {
     const val = e.target.value;
 
@@ -63,25 +76,29 @@ function LoginModal({ isOpen, onClose }) {
     newOtp[index] = val;
     setOtp(newOtp);
 
-    // move forward
     if (val && index < 5) {
       inputRefs.current[index + 1].focus();
     }
   };
 
-  // 🔥 Backspace support
+  // ⬅️ BACKSPACE
   const handleKeyDown = (e, index) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       inputRefs.current[index - 1].focus();
     }
   };
 
-  // 🔥 Verify OTP
+  // ✅ VERIFY OTP
   const handleVerifyOtp = async () => {
+    const finalOtp = otp.join("");
+
+    if (finalOtp.length !== 6) {
+      alert("Enter valid OTP");
+      return;
+    }
+
     try {
       setLoading(true);
-
-      const finalOtp = otp.join("");
 
       const data =
         mode === "email"
@@ -90,25 +107,25 @@ function LoginModal({ isOpen, onClose }) {
 
       const res = await verifyOtpApi(data);
 
-    dispatch(
-      setCredentials({
-        user: res.user,
-        token: res.token,
-      })
-    );
+      dispatch(
+        setCredentials({
+          user: res.user,
+          token: res.token,
+        })
+      );
 
-      onClose(); // ✅ NO RELOAD
+      onClose();
     } catch (err) {
+      console.log(err);
       alert("Invalid OTP");
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔥 Resend OTP
+  // 🔁 RESEND
   const handleResend = async () => {
     if (timer > 0) return;
-
     await handleSendOtp();
   };
 
@@ -121,7 +138,7 @@ function LoginModal({ isOpen, onClose }) {
         className="bg-white w-[380px] rounded-2xl p-6 relative"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close */}
+        {/* ❌ CLOSE */}
         <button
           onClick={onClose}
           className="absolute top-3 right-4 text-gray-500"
@@ -130,7 +147,9 @@ function LoginModal({ isOpen, onClose }) {
         </button>
 
         <h2 className="text-xl font-semibold mb-5 text-center">
-          {step === "input" ? "Sign In / Create Account" : "Enter OTP"}
+          {step === "input"
+            ? "Sign In / Create Account"
+            : "Enter OTP"}
         </h2>
 
         {/* STEP 1 */}
@@ -188,40 +207,36 @@ function LoginModal({ isOpen, onClose }) {
               <div className="flex-1 h-[1px] bg-gray-300"></div>
             </div>
 
-            <GoogleLogin onSuccess={async (credentialsResponse) => {
-                try{
+            {/* GOOGLE LOGIN */}
+            <GoogleLogin
+              onSuccess={async (res) => {
+                try {
+                  if (!res?.credential) {
+                    alert("Google login failed");
+                    return;
+                  }
 
-                   if (!credentialsResponse?.credential) {
-  alert("No credential received");
-  return;
-}
+                  const response = await googleLoginApi({
+                    token: res.credential,
+                  });
 
-const token = credentialsResponse.credential;
-                    const res = await googleLoginApi({ token });
+                  dispatch(
+                    setCredentials({
+                      user: response.user,
+                      token: response.token,
+                    })
+                  );
 
-      dispatch(
-        setCredentials({
-          user: res.user,
-          token: res.token,
-        })
-      )
-      onClose();
-
-                }catch(error){
-
-                      console.log(error);
-      alert("Google login failed");
-
+                  onClose();
+                } catch (err) {
+                  console.log(err);
+                  alert("Google login failed");
                 }
-            }}
-
-             onError={() => {
-    console.log("Google Login Failed");
-  }}
+              }}
+              onError={() => {
+                console.log("Google Login Failed");
+              }}
             />
-
-           
-
           </>
         )}
 
@@ -232,7 +247,7 @@ const token = credentialsResponse.credential;
               OTP sent to {value}
             </p>
 
-            {/* OTP Boxes */}
+            {/* OTP BOXES */}
             <div className="flex justify-between mb-4">
               {otp.map((digit, index) => (
                 <input
@@ -256,7 +271,6 @@ const token = credentialsResponse.credential;
               {loading ? "Verifying..." : "Verify OTP"}
             </button>
 
-            {/* Resend */}
             <p className="text-center text-sm text-gray-500">
               {timer > 0 ? (
                 `Resend OTP in ${timer}s`

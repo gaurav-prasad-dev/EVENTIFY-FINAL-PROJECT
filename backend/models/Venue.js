@@ -24,9 +24,24 @@ const venueSchema = new mongoose.Schema({
     landmark: { type: String, trim: true },
     pincode: { type: String, trim: true },
 
-    amenities:[{
-        type:String,
-    }],
+   // ✅ ADD THIS (for filters like Recliner etc.)
+  amenities: [
+    {
+      type: String,
+      enum: ["Recliner", "Wheelchair", "Premium", "Dolby", "IMAX"],
+    },
+  ],
+
+
+  // ✅ ADD THIS (IMPORTANT for logo)
+  logo: {
+    type: String, // "/logos/cinepolis.png" OR cloud URL
+  },
+
+  // ✅ ADD THIS (OPTIONAL but useful)
+  distance: {
+    type: String, // "1.6 km"
+  },
     isActive:{
         type:Boolean,
         default:true,

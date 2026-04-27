@@ -1,5 +1,4 @@
 const BottomBar = ({ selectedSeats, onProceed }) => {
-  if (selectedSeats.length === 0) return null; // 🔥 hide when no seat
 
   const total = selectedSeats.length * 200;
 
@@ -17,8 +16,12 @@ const BottomBar = ({ selectedSeats, onProceed }) => {
 
       <button
         onClick={onProceed}
-        className="px-8 py-3 rounded-xl bg-black text-white hover:bg-gray-800 transition text-sm font-medium"
-      >
+       
+        className={`px-8 py-3 rounded-xl text-sm font-medium transition
+          ${selectedSeats.length === 0
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-black text-white hover:bg-gray-800"
+          }`}>
         Proceed
       </button>
     </div>

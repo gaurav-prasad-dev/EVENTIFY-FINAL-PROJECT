@@ -1,15 +1,18 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { getShows } from "../../booking/showApi";
-import { useState, useEffect } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchMovieDetails } from "../movieSlice";
+import { fetchMovieDetails, fetchMovieVideos } from "../movieSlice";
+import { getShows } from "../../show/showApi";
 import { setBookingMeta } from "../../booking/bookSlice";
 
 const MovieDetails = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const { movieDetails, loading } = useSelector((state) => state.movies);
+  const { movieDetails, loading } = useSelector(
+    (state) => state.movies
+  );
 
   const { movieId, city } = useParams();
   const decodedCity = decodeURIComponent(city);
@@ -17,7 +20,7 @@ const MovieDetails = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [shows, setShows] = useState([]);
 
-  // 📅 Dates
+  // 📅 Next 5 Days
   const getNext5Days = () => {
     const days = [];
     for (let i = 0; i < 5; i++) {
@@ -35,131 +38,181 @@ const MovieDetails = () => {
 
   const dates = getNext5Days();
 
-  // ✅ Set default date
-  useEffect(() => {
-    setSelectedDate(new Date());
-  }, []);
-
-  // 🎬 Fetch movie details
+  // 🎬 Load Movie
   useEffect(() => {
     dispatch(fetchMovieDetails(movieId));
+    dispatch(fetchMovieVideos(movieId));
+    setSelectedDate(new Date());
   }, [dispatch, movieId]);
 
-  // 🎬 Fetch shows
+  // 🎭 Fetch Shows (FIXED)
   useEffect(() => {
     if (!selectedDate) return;
 
     const fetchShows = async () => {
-      const formattedDate = selectedDate.toISOString().split("T")[0];
-      const data = await getShows(movieId, decodedCity, formattedDate);
+      try {
+        const formattedDate = selectedDate.toISOString().split("T")[0];
 
-      console.log("SHOWS:", data); // ✅ debug
-
-      setShows(data || []);
+        const data = await getShows({
+          movieId,
+          city: decodedCity,
+          date: formattedDate,
+        });
+console.log("API RESPONSE:", data);
+        setShows(data || []);
+      } catch (err) {
+        console.log(err);
+      }
     };
+
+    
 
     fetchShows();
   }, [selectedDate, movieId, decodedCity]);
 
+  // ⏳ Loading
   if (loading || !movieDetails) {
-    return <div className="p-6">Loading...</div>;
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-lg animate-pulse text-gray-600">
+          Loading movie...
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="bg-gray-100 min-h-screen">
 
-      {/* HEADER */}
+      {/* 🎬 HEADER */}
       <div className="max-w-6xl mx-auto p-6 flex gap-6 items-center">
-        <img
-          src={movieDetails.poster}
-          alt={movieDetails.title}
-          className="w-32 rounded-xl"
-        />
+
+        <div
+          className="relative cursor-pointer group"
+          onClick={() => navigate(`/trailer/${movieId}/${city}`)}
+        >
+          <img
+            src={movieDetails.poster}
+            alt={movieDetails.title}
+            className="w-40 rounded-xl shadow-lg"
+          />
+
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition rounded-xl">
+            <div className="bg-white p-3 rounded-full">▶</div>
+          </div>
+        </div>
 
         <div>
-          <h1 className="text-2xl font-semibold">
+          <h1 className="text-3xl font-semibold">
             {movieDetails.title}
           </h1>
 
-          <p className="text-gray-500">
-            {movieDetails.certification} | {movieDetails.language} |{" "}
+          <p className="text-gray-500 mt-2 text-sm">
+            {movieDetails.certification} |{" "}
+            {movieDetails.language?.toUpperCase()} |{" "}
             {movieDetails.runtime} min
           </p>
+
+          <button
+            onClick={() =>
+              navigate(`/movie/${movieId}/details`, {
+                state: { background: location },
+              })
+            }
+            className="mt-3 px-4 py-2 border rounded-lg hover:bg-gray-200"
+          >
+            View details
+          </button>
         </div>
       </div>
 
       {/* 📅 DATE SELECTOR */}
-      <div className="max-w-6xl mx-auto px-6 mt-4 flex gap-3">
-        {dates.map((d, i) => (
-          <button
-            key={i}
-            onClick={() => setSelectedDate(d.fullDate)}
-            className={`px-4 py-2 rounded-lg border ${
-              selectedDate?.toDateString() === d.fullDate.toDateString()
-                ? "bg-black text-white"
-                : "bg-white"
-            }`}
-          >
-            <div>{d.day}</div>
-            <div>{d.date}</div>
-          </button>
-        ))}
+      <div className="max-w-6xl mx-auto px-6 mt-4 flex gap-3 items-center">
+
+        <div className="bg-gray-200 px-3 py-6 rounded-lg text-xs font-semibold text-gray-600 rotate-[-90deg]">
+          {new Date().toLocaleString("en-US", { month: "short" })}
+        </div>
+
+        {dates.map((d, i) => {
+          const isActive =
+            selectedDate?.toDateString() === d.fullDate.toDateString();
+
+          return (
+            <button
+              key={i}
+              onClick={() => setSelectedDate(d.fullDate)}
+              className={`px-4 py-2 rounded-xl text-center transition ${
+                isActive
+                  ? "bg-black text-white shadow-lg"
+                  : "bg-white hover:bg-gray-200"
+              }`}
+            >
+              <p className="text-lg font-semibold">{d.date}</p>
+              <p className="text-xs">{d.day}</p>
+            </button>
+          );
+        })}
       </div>
 
-      {/* 🎬 SHOWS */}
-      <div className="max-w-6xl mx-auto px-6 mt-8">
+      {/* 🎭 LEGEND (UI only) */}
+      <div className="max-w-6xl mx-auto px-6 mt-6 bg-gray-200 py-3 rounded-lg flex gap-6 text-sm text-gray-600">
+        <span>⚫ Available</span>
+        <span>🟡 Filling fast</span>
+        <span>🔴 Almost full</span>
+      </div>
+
+      {/* 🎭 SHOWS */}
+      <div className="max-w-6xl mx-auto px-6 mt-6">
 
         {shows.length === 0 ? (
-          <div className="text-gray-500 text-center mt-10">
-            No shows available for this date
+          <div className="text-center text-gray-500 mt-10">
+            No shows available
           </div>
         ) : (
           shows.map((theatre, index) => (
-            <div key={index} className="bg-white p-5 mb-6 rounded-xl">
-
-              <h3 className="font-semibold mb-3">
-                {theatre.theatreName}
-              </h3>
-
-              {theatre.screens?.map((screen, i) => (
-                <div key={i} className="mb-3">
-
-                  <h4 className="text-sm text-gray-600">
-                    {screen.screenName}
-                  </h4>
-
-                  <div className="flex gap-3 mt-2 flex-wrap">
-                    {screen.shows?.map((s, j) => (
-                      <button
-                        key={j}
-                        onClick={() => {
-                          dispatch(
-                            setBookingMeta({
-                              movieName: movieDetails.title,
-                              theatreName: theatre.theatreName,
-                              city: decodedCity,
-                              showDate: selectedDate.toDateString(),
-                              showTime: s.time,
-                              poster: movieDetails.poster,
-                              allShows: screen.shows.map(x => x.time),
-                            })
-                          );
-
-                          navigate(`/seat-layout/${s.showId}`);
-                        }}
-                        className="border px-4 py-2 rounded-lg hover:bg-green-50"
-                      >
-                        {s.time}
-                      </button>
-                    ))}
-                  </div>
-
+            <div
+              key={index}
+              className="bg-white p-5 mb-6 rounded-2xl shadow-sm hover:shadow-md transition"
+            >
+              {/* Theatre */}
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-lg">
+                    {theatre.theatreName}
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Nearby
+                  </p>
                 </div>
-              ))}
+
+                <button className="text-gray-400 hover:text-red-500">
+                  ♡
+                </button>
+              </div>
+
+              {/* Show Times (UPDATED) */}
+              <div className="flex gap-3 mt-4 flex-wrap">
+                {theatre.shows?.map((s, j) => (
+                  <button
+                    key={s.showId}
+                    onClick={() => {
+                     
+                        console.log("SHOW OBJECT:", s);
+  navigate(`/seat-layout/${movieId}/${s.showId}`);
+
+                    }}
+                    className="px-4 py-2 border rounded-lg text-sm hover:bg-green-50 hover:border-green-400 transition"
+                  >
+                    {new Date(s.time).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </button>
+                ))}
+              </div>
             </div>
           ))
         )}
-
       </div>
     </div>
   );

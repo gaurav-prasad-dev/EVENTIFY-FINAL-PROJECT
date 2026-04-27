@@ -5,8 +5,10 @@ const router = express.Router();
 const { verifyPayment,createPaymentOrder} = require("../controllers/paymentWebhook");
 
 
-router.post("/createOrder", createPaymentOrder );
-router.post("/verify", verifyPayment);
+  const { auth } = require("../middlewares/auth");
+   
+router.post("/createOrder",auth, createPaymentOrder );
+router.post("/verify", auth,verifyPayment);
 
 
 module.exports = router;
