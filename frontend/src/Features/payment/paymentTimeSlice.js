@@ -10,7 +10,8 @@ export const createOrderThunk = createAsyncThunk(
   async (bookingId, thunkAPI) => {
     try {
       const res = await createPaymentOrder(bookingId);
-      return res.order;
+  
+     return res.data.order;
     } catch (error) {
       return thunkAPI.rejectWithValue(
         error.response?.data?.message || "Order creation failed"

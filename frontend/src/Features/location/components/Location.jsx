@@ -7,7 +7,7 @@ import { setCity } from "../locationTimeSlice.js";
 
 function Location() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const locationName = useLocation();
   const dispatch = useDispatch();
 
   const { movieId } = useParams();
@@ -38,7 +38,7 @@ function Location() {
 
     setOpen(false);
 
-    const pathParts = location.pathname.split("/");
+    const pathParts = locationName.pathname.split("/");
 
     if (pathParts[1] === "movies" && pathParts[2]) {
       const movieId = pathParts[2];
@@ -99,7 +99,7 @@ function Location() {
                   onClick={() => handleSelect(city)}
                   className={`p-4 rounded-xl border cursor-pointer text-center hover:bg-blue-50 transition
                     ${
-                      selectedCity?._id === city._id
+                      selectedCity === city.name
                         ? "bg-blue-100 border-blue-500"
                         : ""
                     }`}

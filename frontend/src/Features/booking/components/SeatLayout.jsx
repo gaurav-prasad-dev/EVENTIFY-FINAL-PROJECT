@@ -128,12 +128,16 @@ useEffect(() => {
 
     socket.emit("joinShow", showId);
 
-    const handleSeatLocked = ({ seatId }) => {
+    const handleSeatLocked = ({ seats }) => {
+  seats.forEach((seatId) => {
     dispatch(updateSeatStatus({ seatId, status: "LOCKED" }));
-  };
+  });
+};
 
-const handleSeatUnlocked = ({ seatId }) => {
-  dispatch(updateSeatStatus({ seatId, status: "AVAILABLE" }));
+const handleSeatUnLocked = ({ seats }) => {
+  seats.forEach((seatId) => {
+    dispatch(updateSeatStatus({ seatId, status: "AVAILABLE" }));
+  });
 };
    const handleSeatBooked = () => {
     dispatch(fetchSeatsThunk(showId));
@@ -141,13 +145,13 @@ const handleSeatUnlocked = ({ seatId }) => {
 
   socket.on("seat_locked", handleSeatLocked);
   socket.on("seat_booked", handleSeatBooked);
-  socket.on("seat_unlocked", handleSeatUnlocked);
+  socket.on("seat_unlocked", handleSeatUnLocked);
 
     return () => {
       socket.emit("leaveShow", showId);
       socket.off("seat_locked", handleSeatLocked);
       socket.off("seat_booked", handleSeatBooked);
-      socket.off("seat_unlocked", handleSeatUnlocked);
+      socket.off("seat_unlocked", handleSeatUnLocked);
 
     
     };
@@ -181,33 +185,72 @@ const handleSeatUnlocked = ({ seatId }) => {
   // =========================
   // 💳 PROCEED
   // =========================
-  const handleProceed = async () => {
-    if (!user) {
-      dispatch(setOpenLogin(true));
-      return;
-    }
+//   const handleProceed = async () => {
+//     if (!user) {
+//       dispatch(setOpenLogin(true));
+//       return;
+//     }
 
-    if (selectedSeats.length === 0) {
-      alert("Please select at least one seat");
-      return;
-    }
+//     if (selectedSeats.length === 0) {
+//       alert("Please select at least one seat");
+//       return;
+//     }
 
-    const seatIds = selectedSeats.map((s) => s.id);
+//     const seatIds = selectedSeats.map((s) => s.id);
 
-    if (booking?._id) {
-      navigate("/checkout");
-      return;
-    }
+//      if (booking?._id) {
+//     navigate(`/checkout/${booking._id}`);
+//     return;
+//   }
 
-    const res = await dispatch(
-      createBookingThunk({ showId, seatIds })
-    );
+//     const res = await dispatch(
+//       createBookingThunk({ showId, seats: seatIds })
+//     );
 
-    if (res.meta.requestStatus !== "fulfilled") return;
+//     if (res.meta.requestStatus !== "fulfilled") return;
+// const newBooking = res.payload;
 
-    dispatch(setBooking(res.payload));
-    navigate("/checkout");
-  };
+//     dispatch(setBooking(newBooking));
+//     navigate(`/checkout/${newBooking._id}`);
+//   };
+
+const handleProceed = async () => {
+  if (!user) {
+    dispatch(setOpenLogin(true));
+    return;
+  }
+
+  if (selectedSeats.length === 0) {
+    alert("Please select at least one seat");
+    return;
+  }
+
+  // 🎯 If booking already exists → reuse it
+  if (booking?._id) {
+    navigate(`/checkout/${booking._id}`);
+    return;
+  }
+
+  // 🎟️ Create new booking
+  const seatIds = selectedSeats.map((s) => s.id);
+
+  const res = await dispatch(
+    createBookingThunk({ showId, seats: seatIds })
+  );
+
+  if (res.meta.requestStatus !== "fulfilled") return;
+
+  const newBooking = res.payload;
+
+  if (!newBooking?._id) {
+    alert("Booking failed");
+    return;
+  }
+
+  dispatch(setBooking(newBooking));
+
+  navigate(`/checkout/${newBooking._id}`);
+};
 
   // =========================
   // ⛔ SAFE LOADING (FIXED)

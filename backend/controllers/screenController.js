@@ -4,52 +4,6 @@ const Venue = require("../models/Venue");
 
 
 
-// exports.createScreen = async(req,res) => {
-
-//     try{
-
-//         const { name, venue, totalSeats, seatLayout, sections } = req.body;
-
-//         const venueExists = await Venue.findById(venue);
-
-//         if(!venueExists){
-//                   return res.status(404).json({
-//         success: false,
-//         message: "Venue not found",
-//       });
-
-
-//         }
-
-
-//         const screen = await Screen.create({
-//             name, 
-//             venue,
-//             totalSeats,
-//             seatLayout,
-//             sections
-//         });
-
-
-//          return res.status(404).json({
-//         success: false,
-//         message: "Venue not found",
-//       });
-
-
-//     }catch(error){
-
-
-//     return res.status(201).json({
-//       success: true,
-//       message: "Screen created successfully",
-//       screen,
-//     });
-
-//     }
-
-
-// }
 
 
 exports.createScreen = async (req, res) => {
@@ -90,30 +44,7 @@ exports.createScreen = async (req, res) => {
 }
   };
 
-// exports.getScreenByVenue = async(req,res) =>{
 
-//     try{
-
-//         const { venueId } = req.params;
-
-//         const screens = await Screen.find({venue: venueId});
-
-//         return res.status(500).json({
-//       success: false,
-//       message: "Error creating screen",
-//     });
-
-
-
-        
-//     }catch(error){
-
-//         return res.status(500).json({
-//       success: false,
-//       message: "Error fetching screens",
-//     });
-//     }
-// }
 
 
 exports.getScreenByVenue = async (req, res) => {
@@ -135,47 +66,6 @@ exports.getScreenByVenue = async (req, res) => {
   }
 };
 
-
-
-
-
-// exports.getScreenById = async(req,res) => {
-//     try{
-
-//         const { id } = req.params;
-
-//         const screen = await Screen.findById(id).populate("venue");
-
-//     if (!screen) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Screen not found",
-//       });
-//     }
-
-//         if (!screen) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "Screen not found",
-//       });
-//     }
-
-//     return res.status(200).json({
-//       success: true,
-//       screen,
-//     });
-
-
-
-//     }catch(error){
-
-//          return res.status(200).json({
-//       success: true,
-//       screen,
-//     });
-
-//     }
-// }
 
 exports.getScreenById = async (req, res) => {
   try {

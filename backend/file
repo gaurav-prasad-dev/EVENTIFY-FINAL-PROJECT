@@ -363,3 +363,13 @@ I implemented Redis-based seat locking to prevent double bookings, Razorpay webh
 I also added real-time seat updates using Socket.IO and automated booking expiry using cron jobs. The system follows a REST architecture with event-driven components like webhooks and WebSockets.
 
 ✅ This explanation will impress most backend interviewers.
+
+
+
+
+
+
+
+
+
+lock seat lua leanrned

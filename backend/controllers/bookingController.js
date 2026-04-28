@@ -100,10 +100,10 @@ exports.createBooking = async (req, res) => {
 
     const show = await Show.findById(showId);
 
-    if (!show) {
+    if (!show ) {
       return res.status(404).json({
         success: false,
-        message: "Show not found",
+        message: "Show and seat required",
       });
     }
 
@@ -142,6 +142,8 @@ exports.createBooking = async (req, res) => {
       paymentStatus: "Pending",
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
+    // ✅ ADD THIS
+
 
     return res.status(201).json({
       success: true,

@@ -35,7 +35,7 @@ const dispatch = useDispatch();
         <Route path="/movies" element={<Movie />} />
         <Route path="/movies/:movieId/:city" element={<MovieDetails />} />
         <Route path="/seat-layout/:movieId/:showId" element={<SeatLayout />} />
-        <Route path="/checkout" element={<CheckOutTime />} />
+        <Route path="/checkout/:bookingId" element={<CheckOutTime />} />
         <Route path="/success/:bookingId" element={<Success />} />
         <Route path="/trailer/:movieId/:city" element={<TrailerPage />} />
       </Routes>

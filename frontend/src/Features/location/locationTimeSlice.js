@@ -4,10 +4,13 @@ import { createSlice } from "@reduxjs/toolkit";
 const getStoredCity = () => {
   try {
     const data = localStorage.getItem("city");
-    return data ? JSON.parse(data) : null;
+    const parsed = JSON.parse(data);
+
+    return typeof parsed === "object"
+      ? parsed?.name
+      : parsed;
   } catch (err) {
-    console.log("City parse error, resetting...");
-    localStorage.removeItem("city"); // cleanup old bad data
+    localStorage.removeItem("city");
     return null;
   }
 };
@@ -22,8 +25,14 @@ const locationSlice = createSlice({
   initialState,
   reducers: {
    setCity: (state, action) => {
-  state.city = action.payload;
-  localStorage.setItem("city", JSON.stringify(action.payload)); // ✅ FIX
+  const value =
+    typeof action.payload === "object"
+      ? action.payload?.name
+      : action.payload;
+
+  state.city = value;
+
+  localStorage.setItem("city", JSON.stringify(value));
 },
    
     clearCity: (state) => {

@@ -37,9 +37,11 @@ export const lockSeatThunk = createAsyncThunk(
 // 🧾 CREATE BOOKING
 export const createBookingThunk = createAsyncThunk(
   "booking/createBooking",
-  async ({ showId, seatIds }, thunkAPI) => {
+  async ({ showId, seats}, thunkAPI) => {
     try {
-      const res = await createBooking(showId, seatIds);
+      const res = await createBooking(showId, seats);
+    
+console.log("CREATE BOOKING RESPONSE:", res);
       return res?.booking;
     } catch (error) {
       return thunkAPI.rejectWithValue(
