@@ -34,7 +34,12 @@ const Checkout = () => {
         setBooking(res.booking);
 
         // 🔥 fetch show
-        dispatch(fetchShowById(res.booking.show));
+        // ✅ SAFE FIX
+const showId =
+  typeof res.booking.show === "object"
+    ? res.booking.show._id
+    : res.booking.show;
+        dispatch(fetchShowById(showId));
       } catch (err) {
         console.log(err);
       }
