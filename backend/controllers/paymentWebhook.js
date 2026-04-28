@@ -74,108 +74,108 @@ exports.createPaymentOrder = async (req, res) => {
 };
 
 
-exports.verifyPayment = async (req, res) => {
-  try {
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      bookingId,
-    } = req.body;
+// exports.verifyPayment = async (req, res) => {
+//   try {
+//     const {
+//       razorpay_order_id,
+//       razorpay_payment_id,
+//       razorpay_signature,
+//       bookingId,
+//     } = req.body;
 
-    // 🔐 STEP 1: Verify Signature
-    const body = razorpay_order_id + "|" + razorpay_payment_id;
+//     // 🔐 STEP 1: Verify Signature
+//     const body = razorpay_order_id + "|" + razorpay_payment_id;
 
-    const expectedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_SECRET)
-      .update(body)
-      .digest("hex");
+//     const expectedSignature = crypto
+//       .createHmac("sha256", process.env.RAZORPAY_SECRET)
+//       .update(body)
+//       .digest("hex");
 
-    if (expectedSignature !== razorpay_signature) {
-      return res.status(400).json({
-        success: false,
-        message: "Payment verification failed",
-      });
-    }
+//     if (expectedSignature !== razorpay_signature) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Payment verification failed",
+//       });
+//     }
 
-    // 🔍 STEP 2: Get booking
-    const booking = await Booking.findById(bookingId);
+//     // 🔍 STEP 2: Get booking
+//     const booking = await Booking.findById(bookingId);
 
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: "Booking not found",
-      });
-    }
+//     if (!booking) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Booking not found",
+//       });
+//     }
 
-    // ✅ STEP 3: Prevent duplicate
-    if (booking.paymentStatus === "Success") {
-      return res.status(200).json({
-        success: true,
-        message: "Already verified",
-      });
-    }
+//     // ✅ STEP 3: Prevent duplicate
+//     if (booking.paymentStatus === "Success") {
+//       return res.status(200).json({
+//         success: true,
+//         message: "Already verified",
+//       });
+//     }
 
-    // ✅ STEP 4: Mark seats booked
-    await Show.findByIdAndUpdate(
-      booking.show,
-      {
-        $addToSet: {
-          bookedSeats: { $each: booking.seats },
-        },
-      }
-    );
+//     // ✅ STEP 4: Mark seats booked
+//     await Show.findByIdAndUpdate(
+//       booking.show,
+//       {
+//         $addToSet: {
+//           bookedSeats: { $each: booking.seats },
+//         },
+//       }
+//     );
 
-    // 🔓 STEP 5: Remove Redis locks
-    const keys = booking.seats.map(
-      (seat) => `show:${booking.show}:seat:${seat}`
-    );
-    await redisClient.del(...keys);
+//     // 🔓 STEP 5: Remove Redis locks
+//     const keys = booking.seats.map(
+//       (seat) => `show:${booking.show}:seat:${seat}`
+//     );
+//     await redisClient.del(...keys);
 
-    // 🎟 STEP 6: Generate QR
-    const token = jwt.sign(
-      {
-        bookingId: booking._id,
-        showId: booking.show,
-        seats: booking.seats,
-      },
-      process.env.QR_SECRET,
-      { expiresIn: "24h" }
-    );
+//     // 🎟 STEP 6: Generate QR
+//     const token = jwt.sign(
+//       {
+//         bookingId: booking._id,
+//         showId: booking.show,
+//         seats: booking.seats,
+//       },
+//       process.env.QR_SECRET,
+//       { expiresIn: "24h" }
+//     );
 
-    const qrCode = await QRCode.toDataURL(token);
+//     const qrCode = await QRCode.toDataURL(token);
 
-    // ✅ STEP 7: Update booking
-    booking.qrCode = qrCode;
-    booking.paymentStatus = "Success";
-    booking.bookingStatus = "Confirmed";
-    booking.paymentId = razorpay_payment_id;
-    booking.orderId = razorpay_order_id;
+//     // ✅ STEP 7: Update booking
+//     booking.qrCode = qrCode;
+//     booking.paymentStatus = "Success";
+//     booking.bookingStatus = "Confirmed";
+//     booking.paymentId = razorpay_payment_id;
+//     booking.orderId = razorpay_order_id;
 
-    await booking.save();
+//     await booking.save();
 
-    // 🔥 STEP 8: SOCKET UPDATE
-    global.io.to(booking.show.toString()).emit("seat_booked", {
-      seats: booking.seats,
-    });
+//     // 🔥 STEP 8: SOCKET UPDATE
+//     global.io.to(booking.show.toString()).emit("seat_booked", {
+//       seats: booking.seats,
+//     });
 
-    return res.status(200).json({
-      success: true,
-      message: "Payment verified successfully",
-    });
+//     return res.status(200).json({
+//       success: true,
+//       message: "Payment verified successfully",
+//     });
 
-  } catch (error) {
-    console.log("VERIFY ERROR:", error);
-     console.log("❌ VERIFY ERROR MESSAGE:", error.message);
+//   } catch (error) {
+//     console.log("VERIFY ERROR:", error);
+//      console.log("❌ VERIFY ERROR MESSAGE:", error.message);
 
 
-    return res.status(500).json({
-      success: false,
-      message:  error.message || "Verification failed",
+//     return res.status(500).json({
+//       success: false,
+//       message:  error.message || "Verification failed",
 
-    });
-  }
-};
+//     });
+//   }
+// };
 
 
 
@@ -317,3 +317,202 @@ exports.verifyPayment = async (req, res) => {
 //     });
 //   }
 // };
+
+
+exports.verifyPayment = async (req, res) => {
+  try {
+
+    // ❌ STEP 0: HANDLE FAILED PAYMENT (ADD HERE)
+    if (req.body.failed) {
+      const booking = await Booking.findById(req.body.bookingId);
+
+      if (!booking) {
+        return res.status(404).json({
+          success: false,
+          message: "Booking not found",
+        });
+      }
+
+      // prevent duplicate handling
+      if (booking.paymentStatus === "Failed") {
+        return res.status(200).json({
+          success: false,
+          message: "Already marked as failed",
+        });
+      }
+
+      booking.paymentStatus = "Failed";
+      booking.bookingStatus = "Cancelled";
+
+      await booking.save();
+
+      // 🔓 release seats
+      const keys = booking.seats.map(
+        (seat) => `show:${booking.show}:seat:${seat}`
+      );
+
+      await redisClient.del(...keys);
+
+      global.io.to(booking.show.toString()).emit("seat_unlocked", {
+        seats: booking.seats,
+      });
+
+      return res.status(200).json({
+        success: false,
+        message: "Payment failed handled",
+      });
+    }
+
+    // ==============================
+    // ✅ ORIGINAL SUCCESS FLOW
+    // ==============================
+
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      bookingId,
+    } = req.body;
+
+    // 🔐 STEP 1: Verify Signature
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_SECRET)
+      .update(body)
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment verification failed",
+      });
+    }
+
+    // 🔍 STEP 2: Get booking
+    const booking = await Booking.findById(bookingId);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    // ✅ STEP 3: Prevent duplicate
+    if (booking.paymentStatus === "Success") {
+      return res.status(200).json({
+        success: true,
+        message: "Already verified",
+      });
+    }
+
+    // ✅ STEP 4: Mark seats booked
+    await Show.findByIdAndUpdate(
+      booking.show,
+      {
+        $addToSet: {
+          bookedSeats: { $each: booking.seats },
+        },
+      }
+    );
+
+    // 🔓 STEP 5: Remove Redis locks
+    const keys = booking.seats.map(
+      (seat) => `show:${booking.show}:seat:${seat}`
+    );
+    await redisClient.del(...keys);
+
+    // 🎟 STEP 6: Generate QR
+    const token = jwt.sign(
+      {
+        bookingId: booking._id,
+        showId: booking.show,
+        seats: booking.seats,
+      },
+      process.env.QR_SECRET,
+      { expiresIn: "24h" }
+    );
+
+    const qrCode = await QRCode.toDataURL(token);
+
+    // ✅ STEP 7: Update booking
+    booking.qrCode = qrCode;
+    booking.paymentStatus = "Success";
+    booking.bookingStatus = "Confirmed";
+    booking.paymentId = razorpay_payment_id;
+    booking.orderId = razorpay_order_id;
+
+    await booking.save();
+
+    // 🔥 STEP 8: SOCKET UPDATE
+    global.io.to(booking.show.toString()).emit("seat_booked", {
+      seats: booking.seats,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment verified successfully",
+    });
+
+  } catch (error) {
+    console.log("VERIFY ERROR:", error);
+    console.log("❌ VERIFY ERROR MESSAGE:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Verification failed",
+    });
+  }
+};
+
+exports.markPaymentFailed = async (req, res) => {
+  try {
+    const { bookingId } = req.body;
+
+    const booking = await Booking.findById(bookingId);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    // ✅ prevent duplicate updates
+    if (booking.paymentStatus === "Success") {
+      return res.status(400).json({
+        success: false,
+        message: "Payment already completed",
+      });
+    }
+
+    // 🔓 release seats from Redis
+    const keys = booking.seats.map(
+      (seat) => `show:${booking.show}:seat:${seat}`
+    );
+    await redisClient.del(...keys);
+
+    // ❌ mark failed
+    booking.paymentStatus = "Failed";
+    booking.bookingStatus = "Cancelled";
+    await booking.save();
+
+    // 🔔 socket update
+    global.io.to(booking.show.toString()).emit("seat_unlocked", {
+      seats: booking.seats,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment marked as failed",
+    });
+
+  } catch (error) {
+    console.log("FAIL PAYMENT ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error marking payment failed",
+    });
+  }
+};

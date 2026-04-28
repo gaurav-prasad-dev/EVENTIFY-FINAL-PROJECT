@@ -9,6 +9,8 @@ import { fetchMovieDetails } from "../movies/movieSlice";
 import {
   createOrderThunk,
   verifyPaymentThunk,
+  markPaymentFailedThunk
+
 } from "../payment/paymentTimeSlice";
 
 const Checkout = () => {
@@ -19,10 +21,12 @@ const Checkout = () => {
   const { currentShow } = useSelector((state) => state.shows);
   const { movieDetails } = useSelector((state) => state.movies);
   const { user } = useSelector((state) => state.auth);
+const [serverOffset, setServerOffset] = useState(0);
 
   const [booking, setBooking] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [expired, setExpired] = useState(false);
+const [showExpiredModal, setShowExpiredModal] = useState(false);
 
   // =========================
   // 🔥 STEP 1: FETCH BOOKING
@@ -32,6 +36,12 @@ const Checkout = () => {
       try {
         const res = await getBookingById(bookingId);
         setBooking(res.booking);
+
+        // 🧠 CALCULATE OFFSET
+const serverTime = new Date(res.serverTime).getTime();
+const clientTime = Date.now();
+
+setServerOffset(serverTime - clientTime);
 
         // 🔥 fetch show
         // ✅ SAFE FIX
@@ -65,6 +75,8 @@ const showId =
     if (!booking?.expiresAt) return;
 
     const interval = setInterval(() => {
+        const now = Date.now() + serverOffset;
+
       const diff = Math.max(
         Math.floor(
           (new Date(booking.expiresAt) - Date.now()) / 1000
@@ -76,6 +88,7 @@ const showId =
 
       if (diff <= 0) {
         setExpired(true);
+          setShowExpiredModal(true); 
         clearInterval(interval);
       }
     }, 1000);
@@ -92,46 +105,147 @@ const showId =
   // =========================
   // 💳 STEP 4: PAYMENT
   // =========================
-  const handlePayment = async () => {
-    if (!booking?._id) return;
+//   const handlePayment = async () => {
+//     if (!booking?._id) return;
 
-    const res = await dispatch(createOrderThunk(booking._id));
- console.log("ORDER RESPONSE:", res); // 👈 ADD THIS
+//     const res = await dispatch(createOrderThunk(booking._id));
+//  console.log("ORDER RESPONSE:", res); // 👈 ADD THIS
 
-    if (res.meta.requestStatus !== "fulfilled") {
+//     if (res.meta.requestStatus !== "fulfilled") {
+//     console.log("ORDER ERROR:", res.payload);
+//     alert(res.payload?.message || "Order failed");
+//     return;
+//   }
+
+//     const order = res.payload;
+
+//     const razor = new window.Razorpay({
+//       key: "rzp_test_RseAcqvzZsYCbZ",
+//       amount: order.amount,
+//       currency: "INR",
+//       order_id: order.id,
+
+//       handler: async function (response) {
+//            console.log("✅ PAYMENT SUCCESS:", response);
+
+//         await dispatch(
+//           verifyPaymentThunk({
+//             ...response,
+//             bookingId: booking._id,
+//           })
+//         );
+
+//         navigate(`/success/${booking._id}`);
+//       },
+
+      
+// // ❌ PAYMENT FAILED HANDLER
+//   modal: {
+//     ondismiss: function () {
+//       navigate(`/payment-failed/${booking._id}`);
+//     },
+//   },
+
+//       prefill: {
+//         name: user?.name,
+//         email: user?.email,
+//       },
+//       theme: {
+//       color: "#000000",
+//     },
+//     });
+//     // ❌ FAILURE HANDLER (IMPORTANT)
+//   razor.on("payment.failed", function (response) {
+//   navigate(`/payment-failed/${booking._id}`);
+// });
+
+  
+   
+//   await dispatch(
+//     verifyPaymentThunk({
+//       bookingId: booking._id,
+//       failed: true,
+//     })
+
+//   );
+
+//   alert(
+//       response.error?.description || "Payment failed"
+//     )
+  
+//     razor.open();
+//   }
+
+const handlePayment = async () => {
+  if (!booking?._id) return;
+
+  const res = await dispatch(createOrderThunk(booking._id));
+
+  console.log("ORDER RESPONSE:", res);
+
+  if (res.meta.requestStatus !== "fulfilled") {
     console.log("ORDER ERROR:", res.payload);
     alert(res.payload?.message || "Order failed");
     return;
   }
 
-    const order = res.payload;
+  const order = res.payload;
 
-    const razor = new window.Razorpay({
-      key: "rzp_test_RseAcqvzZsYCbZ",
-      amount: order.amount,
-      currency: "INR",
-      order_id: order.id,
+  const razor = new window.Razorpay({
+    key: "rzp_test_RseAcqvzZsYCbZ",
+    amount: order.amount,
+    currency: "INR",
+    order_id: order.id,
 
-      handler: async function (response) {
-        await dispatch(
-          verifyPaymentThunk({
-            ...response,
-            bookingId: booking._id,
-          })
-        );
+    // ✅ SUCCESS
+    handler: async function (response) {
+      console.log("✅ PAYMENT SUCCESS:", response);
 
-        navigate(`/success/${booking._id}`);
-      },
+      await dispatch(
+        verifyPaymentThunk({
+          ...response,
+          bookingId: booking._id,
+        })
+      );
 
-      prefill: {
-        name: user?.name,
-        email: user?.email,
+      navigate(`/success/${booking._id}`);
+    },
+
+    
+  // 🔥 mark failure instantly in backend
+ modal: {
+  ondismiss: async function () {
+    await dispatch(markPaymentFailedThunk(booking._id));
+
+    navigate(`/payment-failed/${booking._id}`);
+  },
+},
+    prefill: {
+      name: user?.name,
+      email: user?.email,
+    },
+
+    theme: {
+      color: "#000000",
+    },
+  });
+
+  // ❌ PAYMENT FAILED (REAL FAILURE)
+  razor.on("payment.failed", function (response) {
+    console.log("❌ PAYMENT FAILED:", response);
+
+  // 🔥 mark failure instantly in backend
+   dispatch(markPaymentFailedThunk(booking._id));
+
+    navigate(`/payment-failed/${booking._id}`, {
+      state: {
+        error: response.error?.description,
       },
     });
+  });
 
-    razor.open();
-  };
-
+  razor.open();
+};
   // =========================
   // 🧠 DERIVED DATA
   // =========================
@@ -151,8 +265,30 @@ const showId =
   // 🎬 UI
   // =========================
   return (
-  <div className="bg-gray-50 min-h-screen">
 
+    
+  <div className="bg-gray-50 min-h-screen">
+{showExpiredModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-2xl p-6 w-[350px] text-center shadow-xl">
+
+      <h2 className="text-lg font-semibold mb-2">
+        Booking Expired
+      </h2>
+
+      <p className="text-sm text-gray-600 mb-4">
+        Your selected seats have been released.
+      </p>
+
+      <button
+        onClick={() => navigate("/")}
+        className="bg-black text-white px-4 py-2 rounded-lg w-full"
+      >
+        Book Again
+      </button>
+    </div>
+  </div>
+)}
     {/* TIMER BAR */}
     <div className="bg-purple-100 text-center py-2 text-sm">
       Complete your booking in{" "}
@@ -315,7 +451,12 @@ const showId =
         <button
           disabled={expired}
           onClick={handlePayment}
-          className="w-full bg-black text-white py-4 rounded-2xl flex justify-between items-center px-6"
+          className={`w-full py-4 rounded-2xl flex justify-between items-center px-6 ${
+    expired
+      ? "bg-gray-400 cursor-not-allowed"
+      : "bg-black text-white"
+  }`}
+
         >
           <span className="text-lg font-semibold">
             ₹{total}
@@ -333,6 +474,8 @@ const showId =
       </div>
     </div>
   </div>
+
+  
 );
 };
 

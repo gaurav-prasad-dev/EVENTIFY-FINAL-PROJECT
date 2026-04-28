@@ -318,9 +318,56 @@ exports.confirmBooking = async (req, res) => {
 // ==============================
 // 5. GET BOOKING BY ID
 // ==============================
+// exports.getBookingById = async (req, res) => {
+//   try {
+//     const booking = await Booking.findById(req.params.bookingId).populate("show");
+
+//     if (!booking) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Booking not found",
+//       });
+//     }
+// if (
+//   booking.bookingStatus === "Reserved" &&
+//   booking.expiresAt < new Date()
+// ) {
+//   await Booking.updateOne(
+//     { _id: booking._id },
+//     { bookingStatus: "Cancelled" }
+//   );
+
+//   const keys = booking.seats.map(
+//     (seat) => `show:${booking.show}:seat:${seat}`
+//   );
+
+//   await redisClient.del(...keys);
+
+//   global.io.to(booking.show.toString()).emit("seat_unlocked", {
+//     seats: booking.seats,
+//   });
+
+//   booking.bookingStatus = "Cancelled";
+// }
+//     return res.status(200).json({
+//       success: true,
+//       booking,
+//        serverTime: new Date(),
+//     });
+
+//   } catch (error) {
+//     console.log("GET BOOKING ERROR:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Error fetching booking",
+//     });
+//   }
+// };
+
 exports.getBookingById = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.bookingId).populate("show");
+    const booking = await Booking.findById(req.params.bookingId)
+      .populate("show");
 
     if (!booking) {
       return res.status(404).json({
@@ -329,13 +376,44 @@ exports.getBookingById = async (req, res) => {
       });
     }
 
+    // ✅ HANDLE POPULATED SHOW
+    const showId =
+      typeof booking.show === "object"
+        ? booking.show._id
+        : booking.show;
+
+    // 🔥 REAL-TIME EXPIRY
+    if (
+      booking.bookingStatus === "Reserved" &&
+      booking.expiresAt < new Date()
+    ) {
+      await Booking.updateOne(
+        { _id: booking._id },
+        { bookingStatus: "Cancelled" }
+      );
+
+      const keys = booking.seats.map(
+        (seat) => `show:${showId}:seat:${seat}`
+      );
+
+      await redisClient.del(...keys);
+
+      global.io.to(showId.toString()).emit("seat_unlocked", {
+        seats: booking.seats,
+      });
+
+      booking.bookingStatus = "Cancelled";
+    }
+
     return res.status(200).json({
       success: true,
       booking,
+      serverTime: new Date(), // ✅ timer sync
     });
 
   } catch (error) {
     console.log("GET BOOKING ERROR:", error);
+
     return res.status(500).json({
       success: false,
       message: "Error fetching booking",

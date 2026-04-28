@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   createPaymentOrder,
   verifyPayment,
+  markPaymentFailed
 } from "./paymentApi";
 
 // 💳 CREATE ORDER
@@ -33,6 +34,20 @@ export const verifyPaymentThunk = createAsyncThunk(
     } catch (error) {
       return thunkAPI.rejectWithValue(
         error.response?.data?.message || "Payment verification failed"
+      );
+    }
+  }
+);
+
+export const markPaymentFailedThunk = createAsyncThunk(
+  "payment/fail",
+  async (bookingId, thunkAPI) => {
+    try {
+      const res = await markPaymentFailed(bookingId);
+      return res;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || "Fail update error"
       );
     }
   }

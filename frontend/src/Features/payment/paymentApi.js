@@ -30,3 +30,11 @@ export const verifyPayment = async (data) => {
     throw error;
   }
 };
+
+export const markPaymentFailed = async (bookingId) => {
+  const res = await apiClient.post(
+    "/payment/fail",
+    { bookingId }
+  );
+  return res.data;
+};
