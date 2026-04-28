@@ -21,6 +21,18 @@ exports.createPaymentOrder = async (req, res) => {
         success: false,
         message: "Booking not found",
       });
+    }  
+
+
+    // 🚨 ADD THIS BLOCK
+    if (booking.expiresAt < new Date()) {
+      booking.bookingStatus = "Cancelled";
+      await booking.save();
+
+      return res.status(400).json({
+        success: false,
+        message: "Booking expired",
+      });
     }
 
     // prevent duplicate payment attempts
@@ -51,14 +63,14 @@ exports.createPaymentOrder = async (req, res) => {
       order,
     });
 
-  } catch (error) {
-    console.log("❌ ERROR IN createPaymentOrder:", error);
+  } catch (err) {
+  console.error("🔥 FULL ORDER ERROR:", err); // 👈 IMPORTANT
 
-    return res.status(500).json({
-      success: false,
-      message: "Payment order creation failed",
-    });
-  }
+  return res.status(500).json({
+    success: false,
+    message: err.message, // 👈 send real error
+  });
+}
 };
 
 

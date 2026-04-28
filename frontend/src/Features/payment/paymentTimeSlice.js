@@ -10,9 +10,12 @@ export const createOrderThunk = createAsyncThunk(
   async (bookingId, thunkAPI) => {
     try {
       const res = await createPaymentOrder(bookingId);
-  
-     return res.data.order;
+   console.log("✅ API RESPONSE:", res);
+     return res.order;
     } catch (error) {
+      console.log("🔥 AXIOS ERROR:", error); // 👈 ADD
+      console.log("🔥 RESPONSE:", error.response); // 👈 ADD
+
       return thunkAPI.rejectWithValue(
         error.response?.data?.message || "Order creation failed"
       );

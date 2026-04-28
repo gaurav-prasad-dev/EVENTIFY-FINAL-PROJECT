@@ -96,11 +96,13 @@ const showId =
     if (!booking?._id) return;
 
     const res = await dispatch(createOrderThunk(booking._id));
+ console.log("ORDER RESPONSE:", res); // 👈 ADD THIS
 
     if (res.meta.requestStatus !== "fulfilled") {
-      alert("Order failed");
-      return;
-    }
+    console.log("ORDER ERROR:", res.payload);
+    alert(res.payload?.message || "Order failed");
+    return;
+  }
 
     const order = res.payload;
 

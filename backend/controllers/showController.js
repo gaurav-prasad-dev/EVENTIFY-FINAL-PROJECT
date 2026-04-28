@@ -363,8 +363,7 @@ exports.getShows = async (req, res) => {
 exports.getShowById = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log("Incoming Show ID:", id);
-
+    
 
     const show = await Show.findById(id).populate({
       path: "screen",
@@ -374,8 +373,7 @@ exports.getShowById = async (req, res) => {
       },
     });
 
-     console.log("Fetched Show:", show);
-
+   
     if (!show) {
       return res.status(404).json({
         success: false,
