@@ -21,9 +21,18 @@ const userSchema = new mongoose.Schema({
     },
    role:{
     type:String,
-    enum:["User","Admin","Organizer"],
-    default:"User",
+    enum:["user","admin","organizer"],
+    default:"user",
    },
+   isApproved: {
+    type:Boolean,
+    default: false,
+   }// for approval from admin to become organizer
+   ,
+   isBlocked: {
+  type: Boolean,
+  default: false,
+},
    isActive:{
     type:Boolean,
     default:true,

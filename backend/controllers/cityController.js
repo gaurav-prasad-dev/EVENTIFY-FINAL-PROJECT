@@ -17,7 +17,7 @@ try{
 const stateTrimmed = state?.trim();
 
     const existingCity = await City.findOne({
-  name: { $regex: new RegExp(`^${name}$`, "i") },
+  name: { $regex: new RegExp(`^${nameTrimmed}$`, "i") },
     });
 
       if (existingCity) {

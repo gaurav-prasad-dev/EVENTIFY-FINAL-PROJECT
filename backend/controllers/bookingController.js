@@ -420,3 +420,39 @@ exports.getBookingById = async (req, res) => {
     });
   }
 };
+
+// controllers/bookingController.js
+
+
+exports.getMyBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find({ user: req.user._id })
+      .populate({
+        path: "show",
+        populate: [
+          {
+            path: "screen",
+            populate: {
+              path: "venue", // ✅ THIS IS CORRECT FOR YOU
+            },
+          },
+          {
+            path: "contentId", // ✅ for events
+          },
+        ],
+      })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      bookings,
+    });
+
+  } catch (error) {
+    console.log("GET MY BOOKINGS ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch bookings",
+    });
+  }
+};

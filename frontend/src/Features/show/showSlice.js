@@ -1,28 +1,32 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { getShows, getShowById } from "./showApi";
+import { getShowsByContent, getShowById } from "./showApi";
 
-// ✅ ALL SHOWS
-export const fetchShows = createAsyncThunk(
-  "shows/fetchShows",
-  async (params, thunkAPI) => {
+// 🎬 FETCH SHOWS BY CONTENT (Movie Page)
+export const fetchShowsByContent = createAsyncThunk(
+  "shows/fetchByContent",
+  async ({ contentId, date, cityId }, thunkAPI) => {
     try {
-      const data = await getShows(params);
-      return data;
+      const res = await getShowsByContent(contentId, date, cityId);
+      return res.data; // ✅ extract actual data
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message
+      );
     }
   }
 );
 
-// ✅ SINGLE SHOW
+// 🎟️ FETCH SINGLE SHOW (Seat Page - next)
 export const fetchShowById = createAsyncThunk(
-  "shows/fetchShowById",
+  "shows/fetchById",
   async (showId, thunkAPI) => {
     try {
-      const data = await getShowById(showId);
-      return data;
+      const res = await getShowById(showId);
+      return res.data;
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.message);
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || error.message
+      );
     }
   }
 );
@@ -37,26 +41,30 @@ const initialState = {
 const showSlice = createSlice({
   name: "shows",
   initialState,
-  reducers: {},
+  reducers: {
+    clearShowError: (state) => {
+      state.error = null;
+    },
+  },
 
   extraReducers: (builder) => {
     builder
 
-      // ✅ ALL SHOWS
-      .addCase(fetchShows.pending, (state) => {
+      // 🎬 FETCH SHOWS
+      .addCase(fetchShowsByContent.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
-      .addCase(fetchShows.fulfilled, (state, action) => {
+      .addCase(fetchShowsByContent.fulfilled, (state, action) => {
         state.loading = false;
         state.shows = action.payload || [];
-        console.log("payload:", action.payload);
       })
-      .addCase(fetchShows.rejected, (state, action) => {
+      .addCase(fetchShowsByContent.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
 
-      // ✅ SINGLE SHOW
+      // 🎟️ FETCH SINGLE SHOW
       .addCase(fetchShowById.pending, (state) => {
         state.loading = true;
       })
@@ -70,5 +78,7 @@ const showSlice = createSlice({
       });
   },
 });
+
+export const { clearShowError } = showSlice.actions;
 
 export default showSlice.reducer;

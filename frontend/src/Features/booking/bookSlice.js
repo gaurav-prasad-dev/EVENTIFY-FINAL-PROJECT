@@ -3,7 +3,8 @@ import {
   getSeatLayout,
   lockSeats,
   createBooking,
-} from "./bookingApi"; // ✅ FIXED
+  getMyBookings,
+} from "./bookingApi";
 
 // 🎬 FETCH SEATS
 export const fetchSeatsThunk = createAsyncThunk(
@@ -11,9 +12,7 @@ export const fetchSeatsThunk = createAsyncThunk(
   async (showId, thunkAPI) => {
     try {
       const res = await getSeatLayout(showId);
-    
-    console.log("API RESPONSE:", res);
-      return res?.seats|| [];
+      return res?.seats || [];
     } catch {
       return thunkAPI.rejectWithValue("Failed to fetch seats");
     }
@@ -25,9 +24,8 @@ export const lockSeatThunk = createAsyncThunk(
   "booking/lockSeat",
   async ({ showId, seatId }, thunkAPI) => {
     try {
-      const res = await lockSeats(showId, [seatId]);
-      return seatId; // OK
-
+      await lockSeats(showId, [seatId]);
+      return seatId;
     } catch {
       return thunkAPI.rejectWithValue("Seat lock failed");
     }
@@ -37,11 +35,9 @@ export const lockSeatThunk = createAsyncThunk(
 // 🧾 CREATE BOOKING
 export const createBookingThunk = createAsyncThunk(
   "booking/createBooking",
-  async ({ showId, seats}, thunkAPI) => {
+  async ({ showId, seats }, thunkAPI) => {
     try {
       const res = await createBooking(showId, seats);
-    
-console.log("CREATE BOOKING RESPONSE:", res);
       return res?.booking;
     } catch (error) {
       return thunkAPI.rejectWithValue(
@@ -51,10 +47,26 @@ console.log("CREATE BOOKING RESPONSE:", res);
   }
 );
 
+// 📦 FETCH MY BOOKINGS
+export const fetchMyBookingsThunk = createAsyncThunk(
+  "booking/fetchMyBookings",
+  async (_, thunkAPI) => {
+    try {
+      return await getMyBookings();
+    } catch {
+      return thunkAPI.rejectWithValue("Failed to fetch bookings");
+    }
+  }
+);
+
 const initialState = {
   seats: [],
   selectedSeats: [],
   booking: null,
+
+  // ✅ NEW
+  myBookings: [],
+  loadingMyBookings: false,
 
   bookingMeta: {
     movieName: "",
@@ -66,7 +78,6 @@ const initialState = {
     allShows: [],
   },
 
-  // ✅ separate loading states
   loadingSeats: false,
   lockingSeat: false,
   creatingBooking: false,
@@ -106,20 +117,18 @@ const bookingSlice = createSlice({
       state.booking = action.payload;
     },
 
-   setBookingMeta: (state, action) => {
-  state.bookingMeta = {
-    ...state.bookingMeta,
-    ...action.payload,
-  };
-},
+    setBookingMeta: (state, action) => {
+      state.bookingMeta = {
+        ...state.bookingMeta,
+        ...action.payload,
+      };
+    },
 
     resetBooking: (state) => {
-  state.seats = [];
-  state.selectedSeats = [];
-  state.booking = null;
-
-  // ❌ DO NOT RESET bookingMeta
-},
+      state.seats = [];
+      state.selectedSeats = [];
+      state.booking = null;
+    },
 
     clearError: (state) => {
       state.error = null;
@@ -134,7 +143,6 @@ const bookingSlice = createSlice({
         state.loadingSeats = true;
       })
       .addCase(fetchSeatsThunk.fulfilled, (state, action) => {
-        console.log("REDUX SEATS:", action.payload); // 👈 check here
         state.loadingSeats = false;
         state.seats = action.payload;
       })
@@ -159,11 +167,11 @@ const bookingSlice = createSlice({
       .addCase(lockSeatThunk.rejected, (state, action) => {
         state.lockingSeat = false;
         state.error = action.payload;
-          // optional safety reset (important UX fix)
-  state.seats = state.seats.map((s) =>
-    s.status === "LOCKED" ? { ...s, status: "AVAILABLE" } : s
-  );
 
+        // ✅ safety reset
+        state.seats = state.seats.map((s) =>
+          s.status === "LOCKED" ? { ...s, status: "AVAILABLE" } : s
+        );
       })
 
       // 🧾 CREATE BOOKING
@@ -176,6 +184,19 @@ const bookingSlice = createSlice({
       })
       .addCase(createBookingThunk.rejected, (state, action) => {
         state.creatingBooking = false;
+        state.error = action.payload;
+      })
+
+      // 📦 FETCH MY BOOKINGS (🔥 THIS WAS MISSING)
+      .addCase(fetchMyBookingsThunk.pending, (state) => {
+        state.loadingMyBookings = true;
+      })
+      .addCase(fetchMyBookingsThunk.fulfilled, (state, action) => {
+        state.loadingMyBookings = false;
+        state.myBookings = action.payload;
+      })
+      .addCase(fetchMyBookingsThunk.rejected, (state, action) => {
+        state.loadingMyBookings = false;
         state.error = action.payload;
       });
   },

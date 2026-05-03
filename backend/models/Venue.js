@@ -42,10 +42,20 @@ const venueSchema = new mongoose.Schema({
   distance: {
     type: String, // "1.6 km"
   },
-    isActive:{
+    
+    status:{
+      type: String,
+      enum: ["pending","approved","rejected"],
+      default:"pending",
+    },
+    createdBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+},
+isActive:{
         type:Boolean,
         default:true,
-    }
+    },
 
 },{timestamps: true});
 

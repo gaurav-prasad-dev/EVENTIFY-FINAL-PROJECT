@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { getBookingById } from "../Features/booking/bookingApi";
+import { getBookingById } from "./Features/booking/bookingApi";
 
 const Success = () => {
   

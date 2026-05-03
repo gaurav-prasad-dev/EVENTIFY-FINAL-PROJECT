@@ -94,4 +94,27 @@ exports.getScreenById = async (req, res) => {
 };
 
 
+// ==============================
+// GET ALL SCREENS
+// ==============================
+exports.getAllScreens = async (req, res) => {
+  try {
+    const screens = await Screen.find()
+      .populate("venue") // optional but useful
+      .sort({ createdAt: -1 });
 
+    return res.status(200).json({
+      success: true,
+      count: screens.length,
+      data: screens,
+    });
+
+  } catch (error) {
+    console.log("GET ALL SCREENS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching screens",
+    });
+  }
+};

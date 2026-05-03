@@ -1,20 +1,39 @@
 const express = require("express");
 const router = express.Router();
 
-
-const{
-    createShow,  getShowById, getShows, 
-} = require("../controllers/showController");
-const { route } = require("./auth");
-
- const { auth, isAdmin } = require("../middlewares/auth");
+const {
+ 
   
+  getShowById,
+  getShowsByContent
+} = require("../controllers/showController");
 
-router.post("/create",createShow);//auth,is admin later
-router.get("/", getShows);
+const {
+  auth,
+  isOrganizer,
+  isAdmin,
+} = require("../middlewares/auth");
 
+
+// =======================================================
+// 🎭 PUBLIC ROUTES (USER SIDE)
+// =======================================================
+
+// router.get("/:contentId", getShowsByContent);
+
+// // GET SINGLE SHOW DETAILS
+// router.get("/:id", getShowById);
+
+// ✅ FIX — use distinct paths
+router.get("/by-content/:contentId", getShowsByContent);
 router.get("/:id", getShowById);
 
+
+// =======================================================
+// 🔐 ORGANIZER ROUTES
+// =======================================================
+
+// CREATE SHOW (organizer only)
 
 
 

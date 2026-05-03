@@ -1,3 +1,5 @@
+// controllers/venueController.js
+
 const Venue = require("../models/Venue");
 const City = require("../models/City");
 
@@ -17,8 +19,23 @@ exports.createVenue = async (req, res) => {
       amenities,
     } = req.body;
 
-    // ✅ validate city
+    // ==============================
+    // VALIDATION
+    // ==============================
+    if (
+      !name ||
+      !city 
+     
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "All required fields must be provided",
+      });
+    }
+
+    // ✅ CITY EXISTS
     const cityExists = await City.findById(city);
+
     if (!cityExists) {
       return res.status(404).json({
         success: false,
@@ -26,9 +43,11 @@ exports.createVenue = async (req, res) => {
       });
     }
 
-    // ✅ prevent duplicate venue (important)
+    // ✅ PREVENT DUPLICATE VENUES
     const existingVenue = await Venue.findOne({
-      name: { $regex: new RegExp(`^${name}$`, "i") },
+      name: {
+        $regex: new RegExp(`^${name}$`, "i"),
+      },
       city,
     });
 
@@ -39,28 +58,41 @@ exports.createVenue = async (req, res) => {
       });
     }
 
+    // ==============================
+    // CREATE VENUE
+    // ==============================
     const venue = await Venue.create({
-      name,
-      city,
+      name: name.trim(),
+      city: cityExists._id,
       type,
-      street,
-      area,
-      landmark,
+      street: street.trim()||"",
+      area: area.trim()||"",
+      landmark: landmark || "",
       pincode,
-      amenities,
+      amenities: amenities || [],
+
+      // 🔥 ORGANIZER INFO
+      createdBy: req.user.id,
+
+      // 🔥 APPROVAL FLOW
+      status: "pending",
+
+      // 🔥 ACTIVE FLAG
+      isActive: true,
     });
 
     return res.status(201).json({
       success: true,
-      message: "Venue created successfully",
+      message: "Venue submitted for admin approval",
       data: venue,
     });
 
   } catch (error) {
     console.log("CREATE VENUE ERROR:", error);
+
     return res.status(500).json({
       success: false,
-      message: "Error creating venue",
+      message: error.message || "Error creating venue",
     });
   }
 };
@@ -72,21 +104,35 @@ exports.getVenueByCity = async (req, res) => {
   try {
     const { cityId } = req.params;
 
+    // ✅ VALIDATE CITY
+    const cityExists = await City.findById(cityId);
+
+    if (!cityExists) {
+      return res.status(404).json({
+        success: false,
+        message: "City not found",
+      });
+    }
+
+    // ✅ FETCH VENUES
     const venues = await Venue.find({
       city: cityId,
       isActive: true,
-    }).populate("city"); // ✅ useful for frontend
+      status: "approved",
+    }).populate("city");
 
     return res.status(200).json({
       success: true,
+      count: venues.length,
       data: venues,
     });
 
   } catch (error) {
     console.log("GET VENUES ERROR:", error);
+
     return res.status(500).json({
       success: false,
-      message: "Error fetching venues",
+      message: error.message || "Error fetching venues",
     });
   }
 };
@@ -98,7 +144,9 @@ exports.getVenueById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const venue = await Venue.findById(id).populate("city");
+    const venue = await Venue.findById(id)
+      .populate("city")
+      .populate("createdBy", "name email");
 
     if (!venue) {
       return res.status(404).json({
@@ -114,9 +162,41 @@ exports.getVenueById = async (req, res) => {
 
   } catch (error) {
     console.log("GET VENUE ERROR:", error);
+
     return res.status(500).json({
       success: false,
-      message: "Error fetching venue",
+      message: error.message || "Error fetching venue",
+    });
+  }
+};
+
+// ==============================
+// 4. GET APPROVED VENUES
+// ==============================
+exports.getApprovedVenues = async (req, res) => {
+  try {
+    const venues = await Venue.find({
+      status: "approved",
+      isActive: true,
+    }).populate("city");
+
+    return res.status(200).json({
+      success: true,
+      count: venues.length,
+      data: venues,
+    });
+
+  } catch (error) {
+    console.log(
+      "GET APPROVED VENUES ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error.message ||
+        "Error fetching approved venues",
     });
   }
 };

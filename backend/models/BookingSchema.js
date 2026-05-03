@@ -43,6 +43,14 @@ const bookingSchema = new mongoose.Schema({
         default: () => new Date(Date.now() + 5*60*1000)
 
     },
+    paymentId: String,
+
+    seatDetails:[
+        {
+            seatNumber: String,
+            price: Number,
+        }
+    ],
     qrCode:{
         type:String
     },

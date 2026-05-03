@@ -82,6 +82,10 @@ exports.verifyOtp = async(req,res) =>{
 
         const otpRecord = await Otp.findOne({ identifier });
 
+        console.log("REQ BODY:", req.body);
+console.log("DB OTP:", otpRecord?.otp);
+console.log("INPUT OTP:", otp);
+console.log("IDENTIFIER:", identifier);
         if(!otpRecord){
             return res.status(400).json({
                  success: false,
@@ -89,7 +93,7 @@ exports.verifyOtp = async(req,res) =>{
             });
         }
 
-        if(otpRecord.otp !== otp){
+        if(otpRecord.otp !== String(otp)){
                return res.status(400).json({
         success: false,
         message: "Invalid OTP",
@@ -113,7 +117,7 @@ const query = email ? { email } : { phone: identifier };
             email: email || undefined,
             phone: phone ? identifier : undefined,
 
-             role: "User" 
+             role: "user" 
         });
     
 
@@ -129,6 +133,7 @@ const query = email ? { email } : { phone: identifier };
         {
             id: user._id,// payload (data inside token)
             role: user.role,
+              isApproved: user.isApproved
         },
         process.env.JWT_SECRET,
 
@@ -155,10 +160,12 @@ const query = email ? { email } : { phone: identifier };
 
 
     }catch(error){
-
+  console.error("VERIFY OTP ERROR:", error); // 👈 ADD THIS
           return res.status(500).json({
       success: false,
       message: "OTP verification failed",
+
+         message: error.message, // 👈 show real erro
     });
 
     }
@@ -208,26 +215,12 @@ exports.googleLogin = async(req,res) =>{
     isProfileComplete: false,
   });
 }
-        // if(!user){
-        //     user = await User.create({
-        //         email,
-        //         googleId,
-        //         isVerified:true,
-        //     });
-
-        //     await Profile.create({
-        //         user:user._id,
-        //         fullName: name,
-        //         ProfileImage:picture,
-        //         isProfileComplete:false,
-        //     });
-        // }
-
-        //generate jwt
+       
 
         const jwtToken = jwt.sign(
             {id: user._id,
-                role: user.role
+                role: user.role,
+                isApproved: user.isApproved
             },
             process.env.JWT_SECRET,
             { expiresIn: "7d"}
@@ -286,6 +279,26 @@ exports.logout = async(req,res) => {
     }
 }
 
+exports.requestOrganizer = async(req,res) => {
+    try{
+
+        const user = await User.findById(req.user.id);
+
+        user.role = "organizer";
+        user.isApproved = false;
+
+        await user.save();
+
+            res.json({
+      success: true,
+      message: "Request sent for organizer approval",
+    });
+
+
+    }catch(error){
+res.status(500).json({ message: "Error requesting organizer" });
+    }
+}
 // exports.getMe = async(req,res) => {
 //   try{
 

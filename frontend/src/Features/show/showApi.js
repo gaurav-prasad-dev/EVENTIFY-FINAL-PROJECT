@@ -2,11 +2,27 @@ import apiClient from "../../services/apiClient";
 import { ENDPOINTS } from "../../services/apis";
 
 // 🎬 GET SHOWS
-export const getShows = async ({ movieId, city, date }) => {
+
+export const getShowsByContent = async (contentId, date, cityId) => {
+  try {
+    const res = await apiClient.get(`/shows/by-content/${contentId}`,{
+      params: {
+        date,
+        cityId,
+      },
+    });
+
+    return res.data;
+  } catch (error) {
+    console.log("GET SHOWS ERROR:", error);
+    throw error;
+  }
+};
+export const getShows = async ({ contentId, city, date }) => {
   try {
     const res = await apiClient.get(ENDPOINTS.SHOWS.GET_ALL, {
       params: {
-        movieId,
+        contentId,
         city,
         date,
       },

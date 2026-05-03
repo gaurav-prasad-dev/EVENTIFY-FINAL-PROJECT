@@ -1,32 +1,65 @@
+// ======================================================
+// 📁 routes/authRoutes.js
+// ======================================================
+
 const express = require("express");
 const router = express.Router();
 
-const{ sendOtp, verifyOtp, googleLogin, logout } = require("../controllers/Auth");
+const {
+  sendOtp,
+  verifyOtp,
+  googleLogin,
+  logout,
+  requestOrganizer,
+  // getMe,
+} = require("../controllers/Auth");
 
 const { auth } = require("../middlewares/auth");
 
+// ======================================================
+// 🔓 PUBLIC ROUTES
+// ======================================================
 
-//public routes
+// ✅ SEND OTP
+router.post(
+  "/send-otp",
+  sendOtp
+);
 
-router.post("/send-otp", sendOtp);
+// ✅ VERIFY OTP
+router.post(
+  "/verify-otp",
+  verifyOtp
+);
 
-router.post("/verify-otp", verifyOtp);
+// ✅ GOOGLE LOGIN
+router.post(
+  "/google-login",
+  googleLogin
+);
 
+// ✅ LOGOUT
+router.post(
+  "/logout",
+  logout
+);
 
-router.post("/google-login", googleLogin);
+// ======================================================
+// 🔐 PROTECTED ROUTES
+// ======================================================
 
-router.post("/logout", logout);
+// ✅ REQUEST ORGANIZER ACCESS
+router.post(
+  "/request-organizer",
+  auth,
+  requestOrganizer
+);
 
-// router.get("/me",  getMe);
-
-
-// test protexted routes
-
-router.get("/me",auth,(req,res) =>{
-    res.json({
-        success:true,
-        user:req.user
-    });
-})
+// ✅ GET CURRENT USER
+// router.get(
+//   "/me",
+//   auth,
+//   getMe
+// );
 
 module.exports = router;

@@ -1,18 +1,64 @@
+// ======================================================
+// 📁 routes/bookingRoutes.js
+// ======================================================
+
 const express = require("express");
 const router = express.Router();
 
-const {lockSeats,createBooking,confirmBooking,getBookingById,getSeatLayout} = require("../controllers/bookingController");
-const {auth} = require("../middlewares/auth");
+const {
+  lockSeats,
+  createBooking,
+  confirmBooking,
+  getBookingById,
+  getSeatLayout,
+  getMyBookings
+} = require("../controllers/bookingController");
 
-router.post("/lock-seats",auth,lockSeats);
-router.post("/create",auth,createBooking);//add auth later
+const { auth } = require("../middlewares/auth");
 
-router.post("/confirm",auth,confirmBooking);
+// ======================================================
+// 🎟️ SEAT MANAGEMENT
+// ======================================================
 
-router.get("/:bookingId", getBookingById);
-router.get("/seats/:showId", getSeatLayout);
+// ✅ LOCK SEATS
+router.post(
+  "/lock-seats",
+  auth,
+  lockSeats
+);
 
-// router.post("/payment/order",auth,createPaymentOrder);
-// router.post("/payment/verify",auth,verifyPayment);
+// ✅ GET SEAT LAYOUT
+router.get(
+  "/seats/:showId",
+  auth,
+  getSeatLayout
+);
+
+// ======================================================
+// 📦 BOOKING MANAGEMENT
+// ======================================================
+
+// ✅ CREATE BOOKING
+router.post(
+  "/create",
+  auth,
+  createBooking
+);
+
+// ✅ CONFIRM BOOKING
+router.post(
+  "/confirm",
+  auth,
+  confirmBooking
+);
+
+// ✅ GET BOOKING DETAILS
+router.get(
+  "/:bookingId",
+  auth,
+  getBookingById
+);
+
+router.get("/my", auth, getMyBookings);
 
 module.exports = router;

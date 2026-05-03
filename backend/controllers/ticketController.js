@@ -1,221 +1,309 @@
+// controllers/ticketController.js
+
 const Booking = require("../models/BookingSchema");
 const jwt = require("jsonwebtoken");
-
 const PDFDocument = require("pdfkit");
-// exports.scanTicket = async(req,res) =>{
-//     try{
 
-//         const { token } = req.body;
-
-//         const decoded = jwt.verify(token,process.env.QR_SECRET);
-
-//         const bookingId = decoded.bookingId;
-
-        
-
-//         const booking = await Booking.findById(bookingId)
-//         .populate({
-//             path:"show",
-//             populate:{
-//                 path:"content"
-//             }
-//         });
-
-
-
-
-// if(!booking){
-//  return res.status(404).json({
-//   success:false,
-//   message:"Ticket not found"
-//  });
-// }
-
-// if(booking.bookingStatus !== "Confirmed"){
-//  return res.status(400).json({
-//   success:false,
-//   message:"Ticket not valid"
-//  });
-// }
-
-// if(booking.ticketUsed){
-//  return res.status(400).json({
-//   success:false,
-//   message:"Ticket already used"
-//  });
-// }
-
-
-// booking.ticketUsed = true;
-// await booking.save();
-
-// return res.status(200).json({
-//  success:true,
-//  message:"Entry allowed",
-//  booking
-// });
-
-//     }catch(error){
-
-//         return res.status(400).json({
-//  success:false,
-//  message:"Invalid qr ticket"
-// });
-        
-
-//     }
-// }
-
+// ======================================================
+// 🎟️ SCAN QR TICKET
+// ======================================================
 exports.scanTicket = async (req, res) => {
   try {
     const { token } = req.body;
 
-    const decoded = jwt.verify(token, process.env.QR_SECRET);
+    // ✅ VALIDATION
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "QR token is required",
+      });
+    }
+
+    // ✅ VERIFY JWT
+    const decoded = jwt.verify(
+      token,
+      process.env.QR_SECRET
+    );
+
     const bookingId = decoded.bookingId;
 
+    // ✅ FIND + UPDATE (ATOMIC)
     const booking = await Booking.findOneAndUpdate(
       {
         _id: bookingId,
         bookingStatus: "Confirmed",
-        ticketUsed: false
+        paymentStatus: "Success",
+        ticketUsed: false,
       },
-      { ticketUsed: true },
-      { new: true }
-    ).populate({
-      path: "show",
-      populate: { path: "content" }
-    });
+      {
+        $set: {
+          ticketUsed: true,
+          scannedAt: new Date(),
+        },
+      },
+      {
+        new: true,
+      }
+    )
+      .populate({
+        path: "show",
+        populate: [
+          { path: "contentId" },
+          {
+            path: "screen",
+            populate: {
+              path: "venue",
+            },
+          },
+        ],
+      })
+      .populate("user", "name email");
 
+    // ✅ INVALID / USED
     if (!booking) {
       return res.status(400).json({
         success: false,
-        message: "Invalid or already used ticket"
+        message:
+          "Ticket invalid, already used, or booking not confirmed",
       });
     }
 
     return res.status(200).json({
       success: true,
       message: "Entry allowed",
-      booking
+      data: booking,
     });
 
   } catch (error) {
-    return res.status(400).json({
+    console.log("SCAN TICKET ERROR:", error);
+
+    // JWT EXPIRED
+    if (error.name === "TokenExpiredError") {
+      return res.status(400).json({
+        success: false,
+        message: "QR ticket expired",
+      });
+    }
+
+    // JWT INVALID
+    if (error.name === "JsonWebTokenError") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid QR ticket",
+      });
+    }
+
+    return res.status(500).json({
       success: false,
-      message: "Invalid QR ticket"
+      message: "Error scanning ticket",
     });
   }
 };
 
+// ======================================================
+// 📄 DOWNLOAD PDF TICKET
+// ======================================================
+exports.downloadTicket = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
 
-
-
-
-
-exports.downloadTicket = async(req,res)=>{
-    try{
-
-        const { bookingId } = req.params;
-
-
-        const booking = await Booking.findById(bookingId)
-      .populate({
-  path: "show",
-  populate: [
-    { path: "content" },
-    {
-      path: "screen",
-      populate: {
-        path: "venue"
-      }
-    }
-  ]
-});
-
-
-           if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: "Booking not found"
-      });
-    }
-
-      if (booking.bookingStatus !== "Confirmed") {
+    // ✅ VALIDATION
+    if (!bookingId) {
       return res.status(400).json({
         success: false,
-        message: "Ticket not confirmed yet"
+        message: "Booking ID required",
       });
     }
 
-    const doc = new PDFDocument();
+    // ✅ FETCH BOOKING
+    const booking = await Booking.findById(bookingId)
+      .populate({
+        path: "show",
+        populate: [
+          { path: "contentId" },
+          {
+            path: "screen",
+            populate: {
+              path: "venue",
+            },
+          },
+        ],
+      })
+      .populate("user", "name email");
 
-    res.setHeader("Content-Type", "application/pdf");
+    // ✅ NOT FOUND
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found",
+      });
+    }
+
+    // ✅ SECURITY CHECK
+    if (booking.user._id.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized access",
+      });
+    }
+
+    // ✅ BOOKING STATUS CHECK
+    if (
+      booking.bookingStatus !== "Confirmed" ||
+      booking.paymentStatus !== "Success"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Ticket not confirmed yet",
+      });
+    }
+
+    // ✅ QR CHECK
+    if (!booking.qrCode) {
+      return res.status(400).json({
+        success: false,
+        message: "QR Code not available",
+      });
+    }
+
+    // ======================================================
+    // 📄 PDF DOCUMENT
+    // ======================================================
+    const doc = new PDFDocument({
+      margin: 40,
+      size: "A4",
+    });
+
     res.setHeader(
-        "Content-Disposition",
-        `attachment; filename=ticket-${booking._id}.pdf`
+      "Content-Type",
+      "application/pdf"
     );
 
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=ticket-${booking._id}.pdf`
+    );
 
     doc.pipe(res);
 
-    doc.fontSize(22).text("Movie Ticket", { align: "center"});
-        doc.moveDown();
+    // ======================================================
+    // 🎬 HEADER
+    // ======================================================
+    doc
+      .fontSize(26)
+      .text("EVENTIFY", {
+        align: "center",
+      });
 
-        doc.fontSize(14).text(`Booking ID: ${booking._id}`);
-        doc.text(`Movie/Event: ${booking.show.content.title}`);
-        doc.text(`Venue: ${booking.show.screen.venue.name}`);
-        doc.text(`Seats: ${booking.seats.join(", ")}`);
-        doc.text(`Total Paid: ₹${booking.totalAmount}  `);
+    doc.moveDown(0.5);
 
+    const ticketTitle =
+      booking.show.contentType === "event"
+        ? "EVENT TICKET"
+        : "MOVIE TICKET";
 
-        doc.moveDown();
-        doc.text("QR Code");
+    doc
+      .fontSize(20)
+      .text(ticketTitle, {
+        align: "center",
+      });
 
-        if (!booking.qrCode) {
-  return res.status(400).json({
-    success: false,
-    message: "QR Code not available"
-  });
-}
-        const qrBuffer = Buffer.from(qrBase64, "base64");
+    doc.moveDown(2);
 
-        doc.image(qrBuffer,{
-            fit:[200,200],
-            align:"center"
-        });
+    // ======================================================
+    // 🎟️ BOOKING DETAILS
+    // ======================================================
+    doc.fontSize(14);
 
-        doc.end();
-        
-    
-    }catch(error){
+    const contentName =
+      booking.show.contentId?.title ||
+      booking.show.contentId?.name ||
+      "Movie";
 
-        return res.status(500).json({
-            success:false,
-            message:"Ticket Download failed"
-        });
-        
-        
+    doc.text(`Booking ID: ${booking._id}`);
+    doc.text(`Customer: ${booking.user.name}`);
+    doc.text(`Email: ${booking.user.email}`);
+    doc.text(`Movie/Event: ${contentName}`);
+    doc.text(
+      `Venue: ${booking.show.screen?.venue?.name || "N/A"}`
+    );
+    doc.text(
+      `Screen: ${booking.show.screen?.name || "N/A"}`
+    );
+    doc.text(`Seats: ${booking.seats.join(", ")}`);
+    doc.text(`Total Paid: ₹${booking.totalAmount}`);
 
-    }
-}
+    doc.text(
+      `Show Time: ${new Date(
+        booking.show.startTime
+      ).toLocaleString("en-IN")}`
+    );
 
+    doc.moveDown(2);
 
+    // ======================================================
+    // 🔳 QR CODE
+    // ======================================================
+    doc
+      .fontSize(16)
+      .text("ENTRY QR CODE", {
+        align: "center",
+      });
 
+    doc.moveDown();
 
+    const base64Data = booking.qrCode.replace(
+      /^data:image\/png;base64,/,
+      ""
+    );
 
+    const qrBuffer = Buffer.from(
+      base64Data,
+      "base64"
+    );
 
+    doc.image(qrBuffer, {
+      fit: [180, 180],
+      align: "center",
+      valign: "center",
+    });
 
-// //OTP login
-// Google login
-// Profile system
-// Cities
-// Venues
-// Content (movie/event)
-// Shows
-// Seat locking (Redis)
-// Booking system
-// Payment with :contentReference[oaicite:1]{index=1}
-// Booking expiry
-// QR ticket generation
-// Secure JWT QR ticket
-// Ticket scanning
+    doc.moveDown(2);
+
+    // ======================================================
+    // 📝 FOOTER
+    // ======================================================
+    doc
+      .fontSize(10)
+      .text(
+        "Please carry a valid government ID proof along with this ticket.",
+        {
+          align: "center",
+        }
+      );
+
+    doc.moveDown();
+
+    doc
+      .fontSize(10)
+      .text(
+        "This QR code is valid for one-time entry only.",
+        {
+          align: "center",
+        }
+      );
+
+    doc.end();
+
+  } catch (error) {
+    console.log(
+      "DOWNLOAD TICKET ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Ticket download failed",
+    });
+  }
+};

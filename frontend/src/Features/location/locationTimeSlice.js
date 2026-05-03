@@ -20,7 +20,7 @@ const initialState = {
 };
 
 
-const locationSlice = createSlice({
+const locationTimeSlice = createSlice({
   name: "location",
   initialState,
   reducers: {
@@ -42,5 +42,5 @@ const locationSlice = createSlice({
   },
 });
 
-export const { setCity, clearCity } = locationSlice.actions;
-export default locationSlice.reducer;
+export const { setCity, clearCity } = locationTimeSlice.actions;
+export default locationTimeSlice.reducer;

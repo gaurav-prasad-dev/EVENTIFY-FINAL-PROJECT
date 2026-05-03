@@ -1,26 +1,26 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+
 import { fetchMovieDetails, fetchMovieVideos } from "../movieSlice";
-import { getShows } from "../../show/showApi";
-import { setBookingMeta } from "../../booking/bookSlice";
+import { getShowsByContent } from "../../show/showApi";
 
 const MovieDetails = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { movieDetails, loading } = useSelector(
-    (state) => state.movies
-  );
+  const { movieDetails, loading } = useSelector((state) => state.movies);
+  const { selectedCity } = useSelector((state) => state.location);
 
-  const { movieId, city } = useParams();
+  // ✅ route params
+  const { contentId, city } = useParams();
   const decodedCity = decodeURIComponent(city);
 
   const [selectedDate, setSelectedDate] = useState(null);
   const [shows, setShows] = useState([]);
 
-  // 📅 Next 5 Days
+  // 📅 next 5 days
   const getNext5Days = () => {
     const days = [];
     for (let i = 0; i < 5; i++) {
@@ -38,40 +38,55 @@ const MovieDetails = () => {
 
   const dates = getNext5Days();
 
-  // 🎬 Load Movie
+  // 🎬 load movie (TMDB details only)
   useEffect(() => {
-    dispatch(fetchMovieDetails(movieId));
-    dispatch(fetchMovieVideos(movieId));
+    if (!contentId) return;
+
+    dispatch(fetchMovieDetails(contentId));
+    dispatch(fetchMovieVideos(contentId));
+
     setSelectedDate(new Date());
-  }, [dispatch, movieId]);
+  }, [dispatch, contentId]);
 
-  // 🎭 Fetch Shows (FIXED)
+  // 🎭 fetch shows (IMPORTANT FIXED)
   useEffect(() => {
-    if (!selectedDate) return;
-
     const fetchShows = async () => {
       try {
-        const formattedDate = selectedDate.toISOString().split("T")[0];
+        if (!contentId || !selectedDate) return;
 
-        const data = await getShows({
-          movieId,
-          city: decodedCity,
-          date: formattedDate,
-        });
-console.log("API RESPONSE:", data);
-        setShows(data || []);
+        const formattedDate = selectedDate.toLocaleDateString("en-CA");
+
+        const cityId =
+          selectedCity?._id || "69de98e1c1642617c42255c4";
+
+        const res = await getShowsByContent(
+          contentId,
+          formattedDate,
+          cityId
+        );
+
+        const data = res?.data || [];
+
+        const formattedShows = data.map((venue) => ({
+          theatreName: venue.venueName,
+          shows: venue.shows.map((s) => ({
+            showId: s.showId,
+            time: s.startTime,
+          })),
+        }));
+
+        setShows(formattedShows);
       } catch (err) {
-        console.log(err);
+        console.log("SHOW FETCH ERROR:", err);
+        setShows([]);
       }
     };
 
-    
-
     fetchShows();
-  }, [selectedDate, movieId, decodedCity]);
+  }, [contentId, selectedDate, selectedCity?._id]);
 
-  // ⏳ Loading
-  if (loading || !movieDetails) {
+  // ⏳ loading
+  if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-100">
         <div className="text-lg animate-pulse text-gray-600">
@@ -89,11 +104,11 @@ console.log("API RESPONSE:", data);
 
         <div
           className="relative cursor-pointer group"
-          onClick={() => navigate(`/trailer/${movieId}/${city}`)}
+          onClick={() => navigate(`/trailer/${contentId}/${city}`)}
         >
           <img
-            src={movieDetails.poster}
-            alt={movieDetails.title}
+            src={movieDetails?.poster}
+            alt={movieDetails?.title}
             className="w-40 rounded-xl shadow-lg"
           />
 
@@ -104,18 +119,18 @@ console.log("API RESPONSE:", data);
 
         <div>
           <h1 className="text-3xl font-semibold">
-            {movieDetails.title}
+            {movieDetails?.title}
           </h1>
 
           <p className="text-gray-500 mt-2 text-sm">
-            {movieDetails.certification} |{" "}
-            {movieDetails.language?.toUpperCase()} |{" "}
-            {movieDetails.runtime} min
+            {movieDetails?.certification} |{" "}
+            {movieDetails?.language?.toUpperCase()} |{" "}
+            {movieDetails?.runtime} min
           </p>
 
           <button
             onClick={() =>
-              navigate(`/movie/${movieId}/details`, {
+              navigate(`/movie/${contentId}/details`, {
                 state: { background: location },
               })
             }
@@ -141,9 +156,9 @@ console.log("API RESPONSE:", data);
             <button
               key={i}
               onClick={() => setSelectedDate(d.fullDate)}
-              className={`px-4 py-2 rounded-xl text-center transition ${
+              className={`px-4 py-2 rounded-xl transition ${
                 isActive
-                  ? "bg-black text-white shadow-lg"
+                  ? "bg-black text-white"
                   : "bg-white hover:bg-gray-200"
               }`}
             >
@@ -154,7 +169,7 @@ console.log("API RESPONSE:", data);
         })}
       </div>
 
-      {/* 🎭 LEGEND (UI only) */}
+      {/* 🎭 LEGEND */}
       <div className="max-w-6xl mx-auto px-6 mt-6 bg-gray-200 py-3 rounded-lg flex gap-6 text-sm text-gray-600">
         <span>⚫ Available</span>
         <span>🟡 Filling fast</span>
@@ -172,41 +187,22 @@ console.log("API RESPONSE:", data);
           shows.map((theatre, index) => (
             <div
               key={index}
-              className="bg-white p-5 mb-6 rounded-2xl shadow-sm hover:shadow-md transition"
+              className="bg-white p-5 mb-6 rounded-2xl shadow-sm"
             >
-              {/* Theatre */}
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="font-semibold text-gray-900 text-lg">
-                    {theatre.theatreName}
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Nearby
-                  </p>
-                </div>
+              <h3 className="font-semibold text-lg">
+                {theatre.theatreName}
+              </h3>
 
-                <button className="text-gray-400 hover:text-red-500">
-                  ♡
-                </button>
-              </div>
-
-              {/* Show Times (UPDATED) */}
               <div className="flex gap-3 mt-4 flex-wrap">
-                {theatre.shows?.map((s, j) => (
+                {theatre.shows.map((s) => (
                   <button
                     key={s.showId}
-                    onClick={() => {
-                     
-                        console.log("SHOW OBJECT:", s);
-  navigate(`/seat-layout/${movieId}/${s.showId}`);
-
-                    }}
-                    className="px-4 py-2 border rounded-lg text-sm hover:bg-green-50 hover:border-green-400 transition"
+                    onClick={() =>
+                      navigate(`/seat-layout/${contentId}/${s.showId}`)
+                    }
+                    className="px-4 py-2 border rounded-lg text-sm hover:bg-green-50"
                   >
-                    {new Date(s.time).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    {s.time}
                   </button>
                 ))}
               </div>

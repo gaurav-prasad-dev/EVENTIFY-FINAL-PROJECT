@@ -1,23 +1,49 @@
 const jwt = require("jsonwebtoken");
+const User = require("../models/User"); // ✅ import user model
 
 exports.auth = async (req, res, next) => {
   try {
-    const token = req.cookies.token;
+    // ✅ support BOTH cookie + header
+    const token =
+      req.cookies?.token ||
+      req.headers.authorization?.split(" ")[1];
 
-    if(!token){
+    if (!token) {
       return res.status(401).json({
-        success:false,
-        message:" Token  missing",
-      })
+        success: false,
+        message: "Token missing",
+      });
     }
 
+    // ✅ verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+
+    // ✅ fetch user from DB
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // ✅ check blocked
+    if (user.isBlocked) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account has been blocked",
+      });
+    }
+
+    // ✅ attach full user
+    req.user = user;
+
     next();
   } catch (error) {
-    console.error(error);
+    console.error("AUTH ERROR:", error);
 
-     return res.status(401).json({
+    return res.status(401).json({
       success: false,
       message: "Invalid or expired token",
     });
@@ -25,18 +51,39 @@ exports.auth = async (req, res, next) => {
 };
 
 exports.isAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: "Unauthorized",
+    });
+  }
+
+  if (req.user.role !== "admin") {
+    return res.status(403).json({
+      success: false,
+      message: "Admins only",
+    });
+  }
+
+  next();
+};
+
+exports.isOrganizer = (req, res, next) => {
   try {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized. Please login.",
+        message: "Unauthorized",
       });
     }
 
-    if (req.user.role !== "Admin") {
-      return res.status(403).json({
+    if (
+      !["organizer", "admin"].includes(req.user.role) ||
+      (req.user.role === "organizer" && !req.user.isApproved)
+    ) {
+      return res.status(403).json({ // ✅ fixed typo
         success: false,
-        message: "Access denied. Admins only.",
+        message: "Organizer requires admin approval",
       });
     }
 
@@ -44,7 +91,7 @@ exports.isAdmin = (req, res, next) => {
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Error checking admin role",
+      message: "Error checking organizer role",
     });
   }
 };

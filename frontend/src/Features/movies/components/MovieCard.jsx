@@ -5,6 +5,7 @@ const MovieCard = ({ movie }) => {
   const navigate = useNavigate();
   const { city } = useSelector((state) => state.location);
 
+   
   const handleClick = () => {
     const cityName = city || "Indore";
     navigate(`/movies/${movie.id}/${encodeURIComponent(cityName)}`);

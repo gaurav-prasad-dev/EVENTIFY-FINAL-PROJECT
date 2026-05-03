@@ -127,12 +127,17 @@ const ticketRoutes = require("./routes/ticketRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const movieRoutes = require("./routes/movie");
 const homeRoutes = require("./routes/home");
-const eventRoutes = require("./routes/eventRoutes");
 
+const adminRoutes = require("./routes/admin");
+const organizerRoutes = require("./routes/organizerRoutes")
+
+app.use("/api/v1/admin", adminRoutes);
+
+app.use("/api/v1/organizer", organizerRoutes);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/profile", profileRoutes);
 app.use("/api/v1/city", cityRoutes);
-app.use("/api/v1/venue", venueRoutes);
+app.use("/api/v1/venues", venueRoutes);
 app.use("/api/v1/screen", screenRoutes);
 app.use("/api/v1/content", contentRoutes);
 app.use("/api/v1/shows", showRoutes);
@@ -141,9 +146,9 @@ app.use("/api/v1/ticket", ticketRoutes);
 app.use("/api/v1/payment", paymentRoutes);
 app.use("/api/v1/movies", movieRoutes);
 app.use("/api/v1", homeRoutes);
-app.use("/api/v1/events", eventRoutes);
 
-// ==============================
+
+// ============================== 
 // HEALTH CHECK ROUTE
 // ==============================
 app.get("/", (req, res) => {

@@ -1,20 +1,49 @@
- const express = require("express");
-  const router = express.Router();
+// routes/venue.js
 
+const express = require("express");
+const router = express.Router();
 
-   const { createVenue, getVenueByCity, getVenueById} = require("../controllers/venueController");
+// ======================================================
+// CONTROLLERS
+// ======================================================
+const {
+ 
+  getVenueByCity,
+  getVenueById,
+  getApprovedVenues,
+} = require("../controllers/venueController");
 
-   const { auth, isAdmin } = require("../middlewares/auth");
-  
-   console.log("auth:", auth);
-console.log("isAdmin:", isAdmin);
-console.log("createVenue:", createVenue);
+// ======================================================
+// MIDDLEWARES
+// ======================================================
+const {
+  auth,
+  isOrganizer,
+  isAdmin,
+} = require("../middlewares/auth");
 
-   router.post("/create-venue",  createVenue);// add auth , and isadmin later
+// ======================================================
+// VENUE ROUTES
+// ======================================================
 
-   router.get("/city/:cityId",getVenueByCity);
-   router.get("/:id", getVenueById);
+// ✅ CREATE VENUE
 
+// ✅ GET ALL APPROVED VENUES
+router.get(
+  "/approved/all",
+  getApprovedVenues
+);
 
-   module.exports = router;
-   
+// ✅ GET VENUES BY CITY
+router.get(
+  "/city/:cityId",
+  getVenueByCity
+);
+
+// ✅ GET SINGLE VENUE
+router.get(
+  "/:id",
+  getVenueById
+);
+
+module.exports = router;

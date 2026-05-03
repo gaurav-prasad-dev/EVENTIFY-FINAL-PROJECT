@@ -1,69 +1,106 @@
-import { useEffect,useState } from "react";
+import { useState, useEffect } from "react";
 import { getHomeData } from "../Features/movies/movieApi";
-import { data } from "react-router-dom";
 import MovieRow from "../Features/movies/components/MovieRow";
+import { getEventData } from "../Features/events/eventApi";
+import EventR from "../Features/events/components/EventR";
+import Footer from "../components/common/Footer";
 
+function Home() {
+  const [movies, setMovies] = useState(null);
+  const [events, setEvents] = useState(null);
 
+  useEffect(() => {
+    fetchHome();
+    fetchEvents();
+  }, []);
 
-function Movie (){
+  // 🎬 MOVIES
+  const fetchHome = async () => {
+    try {
+      const res = await getHomeData();
 
-    const [movie,setMovie] = useState(null);
+      console.log("HOME API RESPONSE:", res);
 
-    useEffect(() => {
-        fetchMovies();
-
-    },[]);
-
-    const fetchMovies = async() => {
-        try{
-
-            const res = await getHomeData();
-             console.log("FULL RESPONSE:", res); // 🔥 important
-               
-             setMovie(res);
-
-
-        }catch(error){
-               console.log(error);
-
-        }
+      // ✅ FIX: important change here
+      setMovies(res?.data || {});
+    } catch (error) {
+      console.log("HOME ERROR:", error);
     }
+  };
 
-    if (!movie) {
+  // 🎭 EVENTS
+  const fetchEvents = async () => {
+    try {
+      const res = await getEventData();
+
+      console.log("EVENT API RESPONSE:", res);
+
+      setEvents(res || {});
+    } catch (error) {
+      console.log("EVENT ERROR:", error);
+    }
+  };
+
+  // ⏳ LOADING STATE
+  if (!movies) {
     return (
-      <div className="h-screen flex items-center justify-center text-xl">
-        Loading...
+      <div className="h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-lg animate-pulse text-gray-600">
+          Loading amazing content...
+        </div>
       </div>
     );
   }
 
+  return (
+    <div className="bg-gray-50 min-h-screen">
 
-    return(
-  <>
+      {/* spacing for navbar */}
+      <div className="h-[70px]" />
 
+      <div className="max-w-[1400px] mx-auto">
 
-    <div className="bg-gray-100 min-h-screen">
-    <MovieRow title="Top Movies Near you"
-     movies={movie?.nowPlaying} />
+        {/* 🎬 MOVIES */}
+        <div className="space-y-10">
+          <MovieRow
+            title="🔥 Top Movies Near You"
+            movies={movies?.nowPlaying || []}
+          />
 
-     <MovieRow
-        title="Popular Movies" 
-        movies={movie?.popular} 
-      />
+          <MovieRow
+            title="⭐ Popular Movies"
+            movies={movies?.popular || []}
+          />
 
+          <MovieRow
+            title="🎬 Upcoming Movies"
+            movies={movies?.upcoming || []}
+          />
+        </div>
 
-     
-       <MovieRow
-        title="Upcoming Movies" 
-        movies={movie?.upcoming} 
-      />
+        {/* 🎭 EVENTS */}
+        <div className="mt-14 space-y-10">
+          <EventR
+            title="🎵 Music Events"
+            events={events?.music || []}
+          />
 
+          <EventR
+            title="🏏 Sports Events"
+            events={events?.sports || []}
+          />
 
-     </div>
-    </>
-    )
-    
+          <EventR
+            title="😂 Comedy Shows"
+            events={events?.comedy || []}
+          />
+        </div>
 
-} 
+      </div>
 
-export default Movie;
+      <Footer />
+    </div>
+  );
+}
+
+export default Home;

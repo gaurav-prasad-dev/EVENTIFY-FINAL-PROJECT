@@ -3,9 +3,11 @@ import { GoogleLogin } from "@react-oauth/google";
 import { useDispatch } from "react-redux";
 import { setCredentials } from "../authSlice";
 import { sendOtpApi, verifyOtpApi, googleLoginApi } from "../authApi";
+import { useNavigate } from "react-router-dom";
 
 function LoginModal({ isOpen, onClose }) {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const [mode, setMode] = useState("email");
   const [step, setStep] = useState("input");
@@ -107,14 +109,24 @@ function LoginModal({ isOpen, onClose }) {
 
       const res = await verifyOtpApi(data);
 
-      dispatch(
-        setCredentials({
-          user: res.user,
-          token: res.token,
-        })
-      );
+    dispatch(
+  setCredentials({
+    user: res.user,
+    token: res.token,
+  })
+);
 
-      onClose();
+// ✅ CLOSE MODAL
+onClose();
+
+// ✅ REDIRECT BASED ON ROLE
+if (res.user.role === "admin") {
+  navigate("/admin");
+} else if (res.user.role === "organizer") {
+  navigate("/organizer");
+} else {
+  navigate("/");
+}
     } catch (err) {
       console.log(err);
       alert("Invalid OTP");
@@ -221,13 +233,23 @@ function LoginModal({ isOpen, onClose }) {
                   });
 
                   dispatch(
-                    setCredentials({
-                      user: response.user,
-                      token: response.token,
-                    })
-                  );
+  setCredentials({
+    user: response.user,
+    token: response.token,
+  })
+);
 
-                  onClose();
+// ✅ CLOSE MODAL
+onClose();
+
+// ✅ REDIRECT
+if (response.user.role === "admin") {
+  navigate("/admin");
+} else if (response.user.role === "organizer") {
+  navigate("/organizer");
+} else {
+  navigate("/");
+}
                 } catch (err) {
                   console.log(err);
                   alert("Google login failed");

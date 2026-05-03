@@ -1,51 +1,78 @@
 const mongoose = require("mongoose");
 
-const contentSchema = new mongoose.Schema({
-
-    title:{
-        type:String,
-        required:true,
-        trim:true,
-
+const contentSchema = new mongoose.Schema(
+  {
+    // ===================== BASIC INFO =====================
+    title: {
+      type: String,
+      required: true,
+      trim: true,
     },
-    type:{
-        type:String,
-        enum:["Movie","Event"],
-        required:true,
-    },
-    description:{
-        type:String,
-    },
-    duration:{
-        type:Number,
-    },
-    languages:[{
-        type:String,
-    }],
 
-    genres:[{
-        type:String,
-    }],
-     
-    releaseDate:{
-        type:Date,
+    type: {
+      type: String,
+      enum: ["movie", "event"], // ✅ FIXED (case consistency)
+      required: true,
     },
-    poster:{
-        type:String,
+
+    // ===================== TMDB SUPPORT =====================
+    // Used only when type === "movie"
+    tmdbId: {
+      type: Number,
+      sparse: true,
+      index: true,
     },
-    trailerUrl:{
-        type:String,
+
+    // ===================== DETAILS =====================
+    description: {
+      type: String,
     },
-    // rating:{
 
-    // } rating and reviews later
+    duration: {
+      type: Number, // in minutes
+    },
 
-    isActive:{
-        type:Boolean,
-        default:true,
-    }
-},{ timestamps: true});
+    languages: [
+      {
+        type: String,
+      },
+    ],
 
+    genres: [
+      {
+        type: String,
+      },
+    ],
 
+    releaseDate: {
+      type: Date,
+    },
+
+    // ===================== MEDIA =====================
+    poster: {
+      type: String,
+    },
+
+    trailerUrl: {
+      type: String,
+    },
+
+    // ===================== RELATION =====================
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    // ===================== STATUS =====================
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  { timestamps: true }
+);
+
+// ===================== INDEX FOR SEARCH =====================
+contentSchema.index({ title: "text", genres: "text" });
 
 module.exports = mongoose.model("Content", contentSchema);

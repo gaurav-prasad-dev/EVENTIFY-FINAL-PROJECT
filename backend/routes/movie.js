@@ -1,16 +1,50 @@
+// ======================================================
+// 📁 routes/movieRoutes.js
+// ======================================================
+
 const express = require("express");
 const router = express.Router();
 
+const {
+  getHomeData,
+  search,
+  getMovieDetails,
+  getVideos,
+  getAllGenres,
+} = require("../controllers/movie");
 
-const { search , getMovieDetails, getVideos, getAllGenres,} = require("../controllers/movie");
+// ======================================================
+// 🎬 MOVIE ROUTES
+// ======================================================
 
+// ✅ HOME DATA
+router.get(
+  "/home",
+  getHomeData
+);
 
+// ✅ SEARCH MOVIES
+router.get(
+  "/search",
+  search
+);
 
+// ✅ GET ALL GENRES
+router.get(
+  "/genres",
+  getAllGenres
+);
 
-router.get("/search", search);
-router.get("/genres", getAllGenres);
-router.get("/:id/videos", getVideos);
-router.get("/:id", getMovieDetails);
+// ✅ GET MOVIE VIDEOS / TRAILERS
+router.get(
+  "/:id/videos",
+  getVideos
+);
 
+// ✅ GET MOVIE DETAILS
+router.get(
+  "/:id",
+  getMovieDetails
+);
 
 module.exports = router;

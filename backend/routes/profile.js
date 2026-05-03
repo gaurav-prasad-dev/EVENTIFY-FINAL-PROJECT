@@ -1,15 +1,41 @@
-const express = require("express");
+// ======================================================
+// 📁 routes/profileRoutes.js
+// ======================================================
 
+const express = require("express");
 const router = express.Router();
 
+// ======================================================
+// 🎮 CONTROLLERS
+// ======================================================
 
-const { getProfile, updateProfile } = require("../controllers/profileController");
+const {
+  getProfile,
+  updateProfile,
+} = require("../controllers/profileController");
+
+// ======================================================
+// 🔐 MIDDLEWARE
+// ======================================================
 
 const { auth } = require("../middlewares/auth");
 
-router.get("/me", auth, getProfile);
-router.put("/update", auth, updateProfile);
+// ======================================================
+// 👤 PROFILE ROUTES
+// ======================================================
+
+// ✅ GET MY PROFILE
+router.get(
+  "/me",
+  auth,
+  getProfile
+);
+
+// ✅ UPDATE PROFILE
+router.put(
+  "/update",
+  auth,
+  updateProfile
+);
 
 module.exports = router;
-
-
