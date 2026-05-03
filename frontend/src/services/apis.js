@@ -80,7 +80,7 @@ CONTENT: {
   SHOWS: {
 
       GET_BY_CONTENT: (contentId) => `/shows/${contentId}`, 
-      
+
     GET_ALL: "/shows",
     GET_BY_ID: (id) => `/shows/${id}`,
 
@@ -122,8 +122,9 @@ CONTENT: {
   // PAYMENT
   // ======================================================
   PAYMENT: {
-    CREATE_ORDER: "/payment/createOrder",
+    CREATE_ORDER: "/payment/create-order",
     VERIFY: "/payment/verify",
+    FAIL: "/payment/fail",
   },
 
   // ======================================================

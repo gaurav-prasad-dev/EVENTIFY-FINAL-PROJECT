@@ -93,21 +93,95 @@ exports.lockSeats = async (req, res) => {
 // ==============================
 // 2. CREATE BOOKING
 // ==============================
+// exports.createBooking = async (req, res) => {
+//   try {
+//     const userId = String(req.user.id);
+//     const { showId, seats } = req.body;
+
+//     const show = await Show.findById(showId);
+
+//     if (!show ) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Show and seat required",
+//       });
+//     }
+
+//     // 🔥 VALIDATE LOCK
+//     for (const seat of seats) {
+//       const key = `show:${showId}:seat:${seat}`;
+//       const lockOwner = await redisClient.get(key);
+
+//       if (!lockOwner || String(lockOwner) !== userId) {
+//         return res.status(400).json({
+//           success: false,
+//           message: `Seat ${seat} lock invalid or expired`,
+//         });
+//       }
+//     }
+
+//     // 🔥 CHECK DB BOOKED
+//     const conflict = seats.some(seat =>
+//       show.bookedSeats.includes(seat)
+//     );
+
+//     if (conflict) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Some seats already booked",
+//       });
+//     }
+
+// const pricePerSeat = show.basePrice || 150;
+//     const booking = await Booking.create({
+//       bookingId: crypto.randomBytes(6).toString("hex"),
+//       user: userId,
+//       show: showId,
+//       seats,
+//       totalAmount: seats.length * pricePerSeat,
+//       bookingStatus: "Reserved",
+//       paymentStatus: "Pending",
+//       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+//     });
+//     // ✅ ADD THIS
+
+
+//     return res.status(201).json({
+//       success: true,
+//       booking,
+//     });
+
+//   } catch (error) {
+//     console.log("CREATE ERROR:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Error creating booking",
+//     });
+//   }
+// };
+
 exports.createBooking = async (req, res) => {
   try {
-    const userId = String(req.user.id);
+    const userId = String(req.user?._id || req.user?.id);
     const { showId, seats } = req.body;
 
-    const show = await Show.findById(showId);
-
-    if (!show ) {
-      return res.status(404).json({
+    if (!showId || !Array.isArray(seats) || seats.length === 0) {
+      return res.status(400).json({
         success: false,
-        message: "Show and seat required",
+        message: "Invalid booking request",
       });
     }
 
-    // 🔥 VALIDATE LOCK
+    const show = await Show.findById(showId);
+
+    if (!show) {
+      return res.status(404).json({
+        success: false,
+        message: "Show not found",
+      });
+    }
+
+    // 🔥 SAFE LOCK VALIDATION
     for (const seat of seats) {
       const key = `show:${showId}:seat:${seat}`;
       const lockOwner = await redisClient.get(key);
@@ -120,9 +194,9 @@ exports.createBooking = async (req, res) => {
       }
     }
 
-    // 🔥 CHECK DB BOOKED
+    // 🔥 SAFE CONFLICT CHECK (FIXED)
     const conflict = seats.some(seat =>
-      show.bookedSeats.includes(seat)
+      (show.bookedSeats || []).includes(seat)
     );
 
     if (conflict) {
@@ -132,18 +206,19 @@ exports.createBooking = async (req, res) => {
       });
     }
 
+    // 💰 SAFE PRICE
+    const pricePerSeat = show.basePrice || 150;
+
     const booking = await Booking.create({
       bookingId: crypto.randomBytes(6).toString("hex"),
       user: userId,
       show: showId,
       seats,
-      totalAmount: seats.length * show.basePrice,
+      totalAmount: seats.length * pricePerSeat,
       bookingStatus: "Reserved",
       paymentStatus: "Pending",
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
-    // ✅ ADD THIS
-
 
     return res.status(201).json({
       success: true,
@@ -151,7 +226,7 @@ exports.createBooking = async (req, res) => {
     });
 
   } catch (error) {
-    console.log("CREATE ERROR:", error);
+    console.log("CREATE ERROR:", error); // 👈 THIS WILL SHOW EXACT LINE
     return res.status(500).json({
       success: false,
       message: "Error creating booking",

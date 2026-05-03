@@ -6,6 +6,7 @@ const {
   LOCK_SEATS,
   CREATE,
   GET,
+  GET_MY_BOOKINGS,
 } = ENDPOINTS.BOOKING;
 
 // 🎬 GET SEATS
@@ -51,7 +52,7 @@ export const createBooking = async (showId, seats) => {
 // 🔍 GET BOOKING BY ID
 export const getBookingById = async (bookingId) => {
   try {
-    const res = await apiClient.get(BOOKING.GET(bookingId));
+    const res = await apiClient.get(GET(bookingId));
     return res.data;
   } catch (error) {
     console.log("GET BOOKING ERROR:", error);
@@ -63,7 +64,7 @@ export const getBookingById = async (bookingId) => {
 // 📦 GET ALL MY BOOKINGS
 export const getMyBookings = async () => {
   try {
-    const res = await apiClient.get(BOOKING.GET_MY_BOOKINGS);
+    const res = await apiClient.get(GET_MY_BOOKINGS);
     return res.data.bookings;
   } catch (error) {
     console.log("GET MY BOOKINGS ERROR:", error);
