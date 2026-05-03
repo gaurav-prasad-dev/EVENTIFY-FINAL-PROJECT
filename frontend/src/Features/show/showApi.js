@@ -12,7 +12,7 @@ export const getShowsByContent = async (contentId, date, cityId) => {
       },
     });
 
-    return res.data;
+    return res.data.data;
   } catch (error) {
     console.log("GET SHOWS ERROR:", error);
     throw error;

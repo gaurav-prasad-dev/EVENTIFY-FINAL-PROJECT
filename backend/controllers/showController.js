@@ -627,34 +627,332 @@ exports.getShowById = async (req, res) => {
   }
 };
 
+// exports.getShowsByContent = async (req, res) => {
+//   try {
+//     const { contentId } = req.params;
+//     const { date, cityId } = req.query;
+
+    
+
+//     console.log("QUERY:", {
+//   contentId,
+//   date,
+//   cityId,
+// });
+
+// const selectedDate = new Date(date);
+
+// const start = new Date(selectedDate);
+// start.setHours(0, 0, 0, 0);
+
+// const end = new Date(selectedDate);
+// end.setHours(23, 59, 59, 999);
+//     const shows = await Show.aggregate([
+//       {
+//         $match: {
+//           content: new mongoose.Types.ObjectId(contentId),
+//           city:  new mongoose.Types.ObjectId(cityId),
+//         showDate: { $gte: start, $lte: end }, // ✅ FIXED
+//           status: "Active",
+//           approvalStatus: "approved",
+//           publishedStatus: "published",
+//         },
+//       },
+
+//       // 🎬 JOIN SCREEN
+//       {
+//         $lookup: {
+//           from: "screens",
+//           localField: "screen",
+//           foreignField: "_id",
+//           as: "screen",
+//         },
+//       },
+//       { $unwind: "$screen" },
+
+//       // 🏢 JOIN VENUE
+//       {
+//         $lookup: {
+//           from: "venues",
+//           localField: "screen.venue",
+//           foreignField: "_id",
+//           as: "venue",
+//         },
+//       },
+//       { $unwind: "$venue" },
+
+//       // 🎯 GROUP BY VENUE
+//       {
+//         $group: {
+//           _id: "$venue._id",
+//           venueName: { $first: "$venue.name" },
+//           shows: {
+//             $push: {
+//               showId: "$_id",
+//               startTime: "$startTime",
+//               endTime: "$endTime",
+//               screenFeatures: "$screen.features",
+//             },
+//           },
+//         },
+//       },
+
+//       {
+//         $sort: { venueName: 1 },
+//       },
+//     ]);
+
+//     console.log("FOUND SHOWS:", shows);
+
+//     res.json({
+//       success: true,
+//       data: shows,
+//     });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ success: false });
+//   }
+// };
+
+
+
+// exports.getShowsByContent = async (req, res) => {
+//   try {
+//     const { contentId } = req.params; // 👉 TMDB ID (687163)
+//     const { date, cityId } = req.query;
+
+//     console.log("QUERY:", {
+//       contentId,
+//       date,
+//       cityId,
+//     });
+
+//     // ❌ validate input
+//     if (!contentId || !date || !cityId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "contentId, date, cityId are required",
+//       });
+//     }
+
+//     // =========================
+//     // 1. FIND CONTENT BY TMDB ID
+//     // =========================
+//     const content = await Content.findOne({
+//       tmdbId: Number(contentId),
+//     });
+
+//     if (!content) {
+//       return res.json({
+//         success: true,
+//         data: [],
+//         message: "Content not found",
+//       });
+//     }
+
+//     // =========================
+//     // 2. DATE RANGE FILTER
+//     // =========================
+//     const selectedDate = new Date(date);
+
+//     const start = new Date(selectedDate);
+//     start.setHours(0, 0, 0, 0);
+
+//     const end = new Date(selectedDate);
+//     end.setHours(23, 59, 59, 999);
+
+//     // =========================
+//     // 3. AGGREGATION PIPELINE
+//     // =========================
+//     const shows = await Show.aggregate([
+//       {
+//         $match: {
+//           content: content._id, // ✅ FIXED (IMPORTANT)
+//           city: new mongoose.Types.ObjectId(cityId),
+//           showDate: { $gte: start, $lte: end },
+//           status: "Active",
+//           approvalStatus: "approved",
+//           publishedStatus: "published",
+//         },
+//       },
+
+//       // 🎬 JOIN SCREEN
+//       {
+//         $lookup: {
+//           from: "screens",
+//           localField: "screen",
+//           foreignField: "_id",
+//           as: "screen",
+//         },
+//       },
+//       { $unwind: "$screen" },
+
+//       // 🏢 JOIN VENUE
+//       {
+//         $lookup: {
+//           from: "venues",
+//           localField: "screen.venue",
+//           foreignField: "_id",
+//           as: "venue",
+//         },
+//       },
+//       { $unwind: "$venue" },
+
+//       // 🎯 GROUP BY VENUE
+//       {
+//         $group: {
+//           _id: "$venue._id",
+//           venueName: { $first: "$venue.name" },
+//           shows: {
+//             $push: {
+//               showId: "$_id",
+//               startTime: "$startTime",
+//               endTime: "$endTime",
+//               screenFeatures: "$screen.features",
+//             },
+//           },
+//         },
+//       },
+
+//       {
+//         $sort: { venueName: 1 },
+//       },
+//     ]);
+
+//     console.log("FOUND SHOWS:", shows);
+
+//     return res.json({
+//       success: true,
+//       data: shows,
+//     });
+//   } catch (err) {
+//     console.error("GET SHOWS ERROR:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Internal Server Error",
+//     });
+//   }
+// };
+
+
+// exports.getShowsByContent = async (req, res) => {
+//   try {
+//     const { contentId } = req.params;
+//     const { date, cityId } = req.query;
+
+//     console.log("QUERY:", { contentId, date, cityId });
+
+//     const content = await Content.findOne({ tmdbId: Number(contentId) });
+
+//     if (!content) {
+//       return res.json({ success: true, data: [] });
+//     }
+
+//     const selectedDate = new Date(date);
+
+//     const start = new Date(selectedDate);
+//     start.setHours(0, 0, 0, 0);
+
+//     const end = new Date(selectedDate);
+//     end.setHours(23, 59, 59, 999);
+
+//     const shows = await Show.aggregate([
+//       {
+//         $match: {
+//           content: content._id,
+//           city: cityId,
+//           showDate: { $gte: start, $lte: end },
+//           status: "Active",
+//           approvalStatus: "approved",
+//           publishedStatus: "published",
+//         },
+//       },
+
+//       {
+//         $lookup: {
+//           from: "screens",
+//           localField: "screen",
+//           foreignField: "_id",
+//           as: "screen",
+//         },
+//       },
+//       { $unwind: "$screen" },
+
+//       {
+//         $lookup: {
+//           from: "venues",
+//           localField: "screen.venue",
+//           foreignField: "_id",
+//           as: "venue",
+//         },
+//       },
+//       { $unwind: "$venue" },
+
+//       {
+//         $group: {
+//           _id: "$venue._id",
+//           venueName: { $first: "$venue.name" },
+//           shows: {
+//             $push: {
+//               showId: "$_id",
+//               startTime: "$startTime",
+//               endTime: "$endTime",
+//               screenFeatures: "$screen.features",
+//             },
+//           },
+//         },
+//       },
+
+//       { $sort: { venueName: 1 } },
+//     ]);
+
+//     return res.json({
+//       success: true,
+//       data: shows,
+//     });
+
+//   } catch (err) {
+//     console.error("SHOW ERROR:", err);
+//     res.status(500).json({ success: false, message: err.message });
+//   }
+// };
+
 exports.getShowsByContent = async (req, res) => {
   try {
     const { contentId } = req.params;
     const { date, cityId } = req.query;
 
-    console.log("QUERY:", {
-  contentId,
-  date,
-  cityId,
-});
+    const content = await Content.findOne({
+      tmdbId: Number(contentId),
+    });
 
-const start = new Date(`${date}T00:00:00.000+05:30`);
-const end = new Date(`${date}T23:59:59.999+05:30`);
-console.log("START:", start);
-console.log("END:", end);
+    if (!content) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const selectedDate = new Date(date);
+
+    const start = new Date(selectedDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(selectedDate);
+    end.setHours(23, 59, 59, 999);
+
     const shows = await Show.aggregate([
       {
         $match: {
-          content: new mongoose.Types.ObjectId(contentId),
-          city:  new mongoose.Types.ObjectId(cityId),
-        showDate: { $gte: start, $lte: end }, // ✅ FIXED
+          content: content._id,
+
+          // ✅ FIXED (STRING MATCH)
+          city: cityId,
+
+          showDate: { $gte: start, $lte: end },
           status: "Active",
           approvalStatus: "approved",
           publishedStatus: "published",
         },
       },
 
-      // 🎬 JOIN SCREEN
       {
         $lookup: {
           from: "screens",
@@ -665,7 +963,6 @@ console.log("END:", end);
       },
       { $unwind: "$screen" },
 
-      // 🏢 JOIN VENUE
       {
         $lookup: {
           from: "venues",
@@ -676,7 +973,6 @@ console.log("END:", end);
       },
       { $unwind: "$venue" },
 
-      // 🎯 GROUP BY VENUE
       {
         $group: {
           _id: "$venue._id",
@@ -692,19 +988,15 @@ console.log("END:", end);
         },
       },
 
-      {
-        $sort: { venueName: 1 },
-      },
+      { $sort: { venueName: 1 } },
     ]);
 
-    console.log("FOUND SHOWS:", shows);
-
-    res.json({
+    return res.json({
       success: true,
       data: shows,
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false });
+    res.status(500).json({ success: false, message: err.message });
   }
 };
