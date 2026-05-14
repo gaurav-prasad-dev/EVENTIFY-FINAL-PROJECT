@@ -61,8 +61,11 @@ exports.createSingleShow = async (req, res) => {
     }
 
 
-const cityId = new mongoose.Types.ObjectId(req.body.city);
-    // ================= DATE/TIME =================
+// const cityId = new mongoose.Types.ObjectId(req.body.city);
+  
+const cityId = screenData.venue.city._id;
+
+// ================= DATE/TIME =================
     const showDate = new Date(date);
     showDate.setHours(0, 0, 0, 0);
 
@@ -930,21 +933,37 @@ exports.getShowsByContent = async (req, res) => {
       return res.json({ success: true, data: [] });
     }
 
-    const selectedDate = new Date(date);
+  
+const [year, month, day] = date.split("-").map(Number);
 
-    const start = new Date(selectedDate);
-    start.setHours(0, 0, 0, 0);
+const start = new Date(year, month - 1, day);
+start.setHours(0, 0, 0, 0);
 
-    const end = new Date(selectedDate);
-    end.setHours(23, 59, 59, 999);
+const end = new Date(year, month - 1, day);
+end.setHours(23, 59, 59, 999);
 
+console.log({ start, end });
+
+console.log({
+  contentId: content?._id,
+  cityId,
+  start,
+  end,
+});
+const rawShows = await Show.find({});
+
+console.log(rawShows.map(s => ({
+  city: s.city,
+  type: typeof s.city
+})));
     const shows = await Show.aggregate([
       {
         $match: {
           content: content._id,
 
           // ✅ FIXED (STRING MATCH)
-          city: cityId,
+          city: new mongoose.Types.ObjectId(cityId),
+
 
           showDate: { $gte: start, $lte: end },
           status: "Active",
@@ -990,7 +1009,8 @@ exports.getShowsByContent = async (req, res) => {
 
       { $sort: { venueName: 1 } },
     ]);
-
+console.log("FOUND CONTENT:", content);
+console.log("FOUND SHOWS:", shows);
     return res.json({
       success: true,
       data: shows,

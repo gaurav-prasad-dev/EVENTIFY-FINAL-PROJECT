@@ -7,6 +7,7 @@ export const fetchShowsByContent = createAsyncThunk(
   async ({ contentId, date, cityId }, thunkAPI) => {
     try {
       const res = await getShowsByContent(contentId, date, cityId);
+     console.log(res?.data);
       return res.data; // ✅ extract actual data
     } catch (error) {
       return thunkAPI.rejectWithValue(

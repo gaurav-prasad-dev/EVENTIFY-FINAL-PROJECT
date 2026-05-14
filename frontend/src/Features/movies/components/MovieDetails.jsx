@@ -66,7 +66,7 @@ const MovieDetails = () => {
         console.log("RAW RESPONSE:", res);
 
         // ✅ FIX: correct extraction
-        const data = res || [];
+        const data = res|| [];
 
         console.log("EXTRACTED DATA:", data);
 
