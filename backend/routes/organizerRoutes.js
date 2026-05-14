@@ -30,7 +30,8 @@ const {
   getMyVenues,
   updateMyVenue,
 
-} = require("../controllers/organizerController");
+} = require("../controllers/OrganizerController");
+
 const { createSingleShow } = require("../controllers/showController");
 const {
   createVenue
