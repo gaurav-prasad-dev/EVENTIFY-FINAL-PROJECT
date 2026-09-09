@@ -33,8 +33,8 @@ function Location() {
   };
 
   const handleSelect = (city) => {
-    // ✅ Redux update
-    dispatch(setCity(city.name));
+    // ✅ Redux update with full city object
+    dispatch(setCity(city));
 
     setOpen(false);
 

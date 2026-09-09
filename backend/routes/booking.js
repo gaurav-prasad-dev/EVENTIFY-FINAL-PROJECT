@@ -14,7 +14,7 @@ const {
   getMyBookings
 } = require("../controllers/bookingController");
 
-const { auth } = require("../middlewares/auth");
+const { auth, optionalAuth } = require("../middlewares/auth");
 
 // ======================================================
 // 🎟️ SEAT MANAGEMENT
@@ -27,10 +27,10 @@ router.post(
   lockSeats
 );
 
-// ✅ GET SEAT LAYOUT
+// ✅ GET SEAT LAYOUT (allows guest viewing, associates user if authenticated)
 router.get(
   "/seats/:showId",
-  auth,
+  optionalAuth,
   getSeatLayout
 );
 

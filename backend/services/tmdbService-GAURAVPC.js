@@ -11,6 +11,7 @@ exports.getNowPlaying = async() =>{
         }
         )
 
+        console.log(res.data);
         return res.data.results;
 
     }catch(error){

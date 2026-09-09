@@ -41,3 +41,6 @@ const screenSchema = new mongoose.Schema({
 
 
 module.exports = mongoose.model("Screen", screenSchema);
+
+
+

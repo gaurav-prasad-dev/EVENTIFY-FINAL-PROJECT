@@ -54,19 +54,17 @@ const MovieDetails = () => {
 
         const formattedDate = selectedDate.toLocaleDateString("en-CA");
 
-        const cityId =
-          selectedCity?._id || "69de98e1c1642617c42255c4";
+        const cityParam = selectedCity?._id || city || "Indore";
 
         const res = await getShowsByContent(
           contentId,
           formattedDate,
-          cityId
+          cityParam
         );
 
         console.log("RAW RESPONSE:", res);
 
-        // ✅ FIX: correct extraction
-        const data = res|| [];
+        const data = res || [];
 
         console.log("EXTRACTED DATA:", data);
 
@@ -95,7 +93,7 @@ const MovieDetails = () => {
     };
 
     fetchShows();
-  }, [contentId, selectedDate, selectedCity?._id]);
+  }, [contentId, selectedDate, selectedCity?._id, city]);
 
   // ⏳ loading
   if (loading) {

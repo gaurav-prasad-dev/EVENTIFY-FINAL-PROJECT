@@ -50,8 +50,11 @@ const SeatLayout = () => {
   // 🔐 Auth
   const { user } = useSelector((state) => state.auth);
 
+  // 🏙️ City
+  const { city, selectedCity } = useSelector((state) => state.location);
+
   // 📅 Local date
- const localDate = new Date().toLocaleDateString("en-CA");
+  const localDate = new Date().toLocaleDateString("en-CA");
   // =========================
   // ✅ NORMALIZE SHOW DATA
   // =========================
@@ -129,10 +132,10 @@ const SeatLayout = () => {
       fetchShowsByContent({
         contentId: movieId,
         date: localDate,
-        cityId: "69de98e1c1642617c42255c4", // ⚠️ replace later
+        cityId: selectedCity?._id || city || "Indore",
       })
     );
-  }, [movieId, dispatch]);
+  }, [movieId, localDate, selectedCity?._id, city, dispatch]);
 
   // =========================
   // 🔌 SOCKET HANDLING

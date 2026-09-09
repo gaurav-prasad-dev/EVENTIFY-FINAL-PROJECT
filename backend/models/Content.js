@@ -15,6 +15,12 @@ const contentSchema = new mongoose.Schema(
       required: true,
     },
 
+     category: {
+      type: String,
+      enum: ["movie", "event"],
+      default: "movie",
+    },
+
     // ===================== TMDB SUPPORT =====================
     // Used only when type === "movie"
     tmdbId: {
@@ -22,6 +28,27 @@ const contentSchema = new mongoose.Schema(
       sparse: true,
       index: true,
     },
+
+        sourceType: {
+      type: String,
+      enum: ["tmdb", "manual"],
+      required: true,
+    },
+
+    createdByRole: {
+  type: String,
+  enum: ["admin"],
+  default: "admin",
+},
+
+eventDetails: {
+  location: String,
+  venueName: String,
+  eventDate: Date,
+  organizerName: String,
+},
+
+
 
     // ===================== DETAILS =====================
     description: {
@@ -67,6 +94,11 @@ const contentSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
+    },
+  
+   isFeatured: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }

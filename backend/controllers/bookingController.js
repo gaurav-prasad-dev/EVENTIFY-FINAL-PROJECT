@@ -268,9 +268,11 @@ exports.getSeatLayout = async (req, res) => {
     const seats = seatMap.map((s, i) => {
       const lockOwner = lockValues[i];
 
-      let status = "AVAILABLE";
+      const isBooked = (show.bookedSeats || []).some((b) =>
+        typeof b === "string" ? b === s.seatId : b?.seatNumber === s.seatId
+      );
 
-      if (show.bookedSeats.includes(s.seatId)) {
+      if (isBooked) {
         status = "BOOKED";
       } else if (lockOwner) {
         if (userId && String(lockOwner) === userId) {
@@ -441,8 +443,18 @@ exports.confirmBooking = async (req, res) => {
 
 exports.getBookingById = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.bookingId)
-      .populate("show");
+    const booking = await Booking.findById(req.params.bookingId).populate({
+      path: "show",
+      populate: [
+        {
+          path: "screen",
+          populate: { path: "venue", populate: { path: "city" } },
+        },
+        {
+          path: "content",
+        },
+      ],
+    });
 
     if (!booking) {
       return res.status(404).json({
@@ -501,18 +513,19 @@ exports.getBookingById = async (req, res) => {
 
 exports.getMyBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find({ user: req.user._id })
+    const userId = req.user?._id || req.user?.id;
+    const bookings = await Booking.find({ user: userId })
       .populate({
         path: "show",
         populate: [
           {
             path: "screen",
             populate: {
-              path: "venue", // ✅ THIS IS CORRECT FOR YOU
+              path: "venue",
             },
           },
           {
-            path: "contentId", // ✅ for events
+            path: "content",
           },
         ],
       })

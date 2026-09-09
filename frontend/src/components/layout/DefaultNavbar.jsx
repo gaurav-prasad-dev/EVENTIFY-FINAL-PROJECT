@@ -8,9 +8,8 @@ import Location from "../../Features/location/components/Location";
 const DefaulNavbar = ({ user, setOpen, setOpenLogin }) => {
 
   const navItems = [
-    {name: "Home", path:"/", activeClass: "bg-purple-100 text-purple-600"},
-    {name: "Movies", path:"/movies", activeClass: "bg-red-100 text-red-600"},
-    {name: "Events", path:"/events", activeClass:"bg-green-100 text-green-600"},
+    { name: "Home", path: "/", activeClass: "bg-purple-100 text-purple-600" },
+    { name: "Movies", path: "/movies", activeClass: "bg-red-100 text-red-600" },
   ];
 
   return (

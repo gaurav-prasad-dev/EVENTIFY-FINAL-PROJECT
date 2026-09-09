@@ -5,7 +5,7 @@ exports.auth = async (req, res, next) => {
   try {
     // ✅ support BOTH cookie + header
     const token =
-      req.cookies?.token ||
+      req.cookies?.accesstoken ||
       req.headers.authorization?.split(" ")[1];
 
     if (!token) {
@@ -36,8 +36,12 @@ exports.auth = async (req, res, next) => {
       });
     }
 
-    // ✅ attach full user
-    req.user = user;
+    req.user = {
+      id: user._id,
+      _id: user._id,
+      role: user.role,
+      isApproved: user.isApproved,
+    };
 
     next();
   } catch (error) {
@@ -45,8 +49,35 @@ exports.auth = async (req, res, next) => {
 
     return res.status(401).json({
       success: false,
-      message: "Invalid or expired token",
+      message: "ACCESS_TOKEN_EXPIRED",
     });
+  }
+};
+
+exports.optionalAuth = async (req, res, next) => {
+  try {
+    const token =
+      req.cookies?.accesstoken ||
+      req.headers.authorization?.split(" ")[1];
+
+    if (!token) {
+      return next();
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id);
+
+    if (user && !user.isBlocked) {
+      req.user = {
+        id: user._id,
+        _id: user._id,
+        role: user.role,
+        isApproved: user.isApproved,
+      };
+    }
+    next();
+  } catch (err) {
+    next();
   }
 };
 

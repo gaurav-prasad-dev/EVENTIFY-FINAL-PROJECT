@@ -1,52 +1,34 @@
 import { useState, useEffect } from "react";
 import { getHomeData } from "../Features/movies/movieApi";
 import MovieRow from "../Features/movies/components/MovieRow";
-import { getEventData } from "../Features/events/eventApi";
-import EventR from "../Features/events/components/EventR";
 import Footer from "../components/common/Footer";
 
-function Home() {
+function Movie() {
   const [movies, setMovies] = useState(null);
-  const [events, setEvents] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchHome();
-    fetchEvents();
+    fetchMovies();
   }, []);
 
-  // 🎬 MOVIES
-  const fetchHome = async () => {
+  const fetchMovies = async () => {
     try {
+      setLoading(true);
       const res = await getHomeData();
-
-      console.log("HOME API RESPONSE:", res);
-
-      // ✅ FIX: important change here
-      setMovies(res?.data || {});
+      setMovies(res || {});
     } catch (error) {
-      console.log("HOME ERROR:", error);
+      console.log("FETCH MOVIES ERROR:", error);
+      setMovies({});
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 🎭 EVENTS
-  const fetchEvents = async () => {
-    try {
-      const res = await getEventData();
-
-      console.log("EVENT API RESPONSE:", res);
-
-      setEvents(res || {});
-    } catch (error) {
-      console.log("EVENT ERROR:", error);
-    }
-  };
-
-  // ⏳ LOADING STATE
-  if (!movies) {
+  if (loading && !movies) {
     return (
       <div className="h-screen flex items-center justify-center bg-gray-100">
         <div className="text-lg animate-pulse text-gray-600">
-          Loading amazing content...
+          Loading movies...
         </div>
       </div>
     );
@@ -54,48 +36,36 @@ function Home() {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-
-      {/* spacing for navbar */}
+      {/* Spacing for fixed navbar */}
       <div className="h-[70px]" />
 
       <div className="max-w-[1400px] mx-auto">
+        <div className="px-6 pt-6 pb-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+            Explore Movies
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Browse the latest releases, popular hits, and upcoming movies in your city.
+          </p>
+        </div>
 
-        {/* 🎬 MOVIES */}
+        {/* MOVIES SECTIONS */}
         <div className="space-y-10">
           <MovieRow
-            title="🔥 Top Movies Near You"
+            title="🔥 Now Playing in Cinemas"
             movies={movies?.nowPlaying || []}
           />
 
           <MovieRow
-            title="⭐ Popular Movies"
+            title="⭐ Most Popular Hits"
             movies={movies?.popular || []}
           />
 
           <MovieRow
-            title="🎬 Upcoming Movies"
+            title="🎬 Coming Soon to Theatres"
             movies={movies?.upcoming || []}
           />
         </div>
-
-        {/* 🎭 EVENTS */}
-        <div className="mt-14 space-y-10">
-          <EventR
-            title="🎵 Music Events"
-            events={events?.music || []}
-          />
-
-          <EventR
-            title="🏏 Sports Events"
-            events={events?.sports || []}
-          />
-
-          <EventR
-            title="😂 Comedy Shows"
-            events={events?.comedy || []}
-          />
-        </div>
-
       </div>
 
       <Footer />
@@ -103,4 +73,4 @@ function Home() {
   );
 }
 
-export default Home;
+export default Movie;

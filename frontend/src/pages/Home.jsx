@@ -1,27 +1,14 @@
 import { useState, useEffect } from "react";
 import { getHomeData } from "../Features/movies/movieApi";
 import MovieRow from "../Features/movies/components/MovieRow";
-import { getEventData } from "../Features/events/eventApi";
-import EventR from "../Features/events/components/EventR";
 import Footer from "../components/common/Footer";
 
 function Home() {
   const [movies, setMovies] = useState(null);
-  const [events, setEvents] = useState(null);
 
   useEffect(() => {
-    fetchEvents();
     fetchHome();
   }, []);
-
-  const fetchEvents = async () => {
-    try {
-      const res = await getEventData();
-      setEvents(res);
-    } catch (error) {
-      console.log(error);
-    }
-  };
 
   const fetchHome = async () => {
     try {
@@ -59,11 +46,11 @@ function Home() {
         </div>
 
         {/* EVENTS */}
-        <div className="mt-14 space-y-10">
+        {/* <div className="mt-14 space-y-10">
           <EventR title="🎵 Music Events" events={events?.music} />
           <EventR title="🏏 Sports Events" events={events?.sports} />
           <EventR title="😂 Comedy Shows" events={events?.comedy} />
-        </div>
+        </div> */}
 
       </div>
 

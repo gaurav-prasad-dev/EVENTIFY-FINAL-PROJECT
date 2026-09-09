@@ -1,12 +1,15 @@
-# FROM node:18
+FROM node:20-alpine
 
-# WORKDIR /app
+WORKDIR /app
 
-# COPY package*.json ./
-# RUN npm install
+# ✅ FIX: install CA certificates for HTTPS
+RUN apk add --no-cache ca-certificates
 
-# COPY . .
+COPY package*.json ./
+RUN npm install
 
-# EXPOSE 4000
+COPY . .
 
-# CMD ["npm", "start"]
+EXPOSE 4000
+
+CMD ["npm", "run", "dev"]

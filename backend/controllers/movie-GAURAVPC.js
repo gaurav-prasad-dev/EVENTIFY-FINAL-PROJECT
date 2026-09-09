@@ -18,7 +18,7 @@ const {
 // =====================================
 const formatMovie = (movie) => ({
   id: movie.id,
-  tmdbId: movie.tmdbId || movie.id,
+  tmdbId: movie.tmdbId,
   title: movie.title,
   poster: movie.poster_path
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
@@ -48,6 +48,8 @@ exports.getHomeData = async (req, res) => {
       getUpcoming(),
     ]);
 
+  console.log(nowPlaying);
+  
     return res.status(200).json({
       success: true,
       nowPlaying: nowPlaying.map(formatMovie),

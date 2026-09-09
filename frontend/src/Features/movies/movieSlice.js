@@ -7,7 +7,7 @@ export const fetchHomeMovies = createAsyncThunk(
   async (_, thunkAPI) => {
     try {
       const res = await getHomeData();
-      return res.data;
+      return res;
     } catch (error) {
       return thunkAPI.rejectWithValue(error.message);
     }
@@ -36,7 +36,7 @@ export const fetchMovieVideos = createAsyncThunk(
       const res = await getMovieVideos(movieId);
       console.log("VIDEOS RESPONSE:", res);
 
-      return res.trailer?.key || null; // ✅ only trailer key
+      return res?.data?.trailer?.key || res?.trailer?.key || null;
     } catch (error) {
       return thunkAPI.rejectWithValue(error.message);
     }

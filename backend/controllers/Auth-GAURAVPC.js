@@ -36,6 +36,8 @@ exports.sendOtp = async(req,res) =>{
       specialChars: false,
         });
 
+       
+
         const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
         await Otp.create({
@@ -265,7 +267,7 @@ exports.googleLogin = async(req,res) =>{
       {
         id: user._id,
       },
-      process.env.JWT_REFRESH_SECRET || (process.env.JWT_SECRET + "_REFRESH") || "DEFAULT_REFRESH_SECRET_KEY",
+      process.env.JWT_REFRESH_SECRET,
       { expiresIn: "7d" }
     );
 
@@ -384,7 +386,7 @@ exports.refreshAccessToken = async(req,res) => {
         // verify refresh token
     const decoded = jwt.verify(
       refreshToken,
-      process.env.JWT_REFRESH_SECRET || (process.env.JWT_SECRET + "_REFRESH") || "DEFAULT_REFRESH_SECRET_KEY"
+      process.env.JWT_REFRESH_SECRET
     );
     
 

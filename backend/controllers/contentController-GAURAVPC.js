@@ -1,13 +1,7 @@
 
-// =====================================
-// CREATE CONTENT
-// =====================================
-
-
 
 const Content = require("../models/Content");
 const axios = require("axios");
-const tmdbClient = require("../utils/tmdbClient");
 
 exports.createContent = async (req, res) => {
   try {
@@ -58,10 +52,11 @@ exports.createContent = async (req, res) => {
       }
 
       // fetch TMDB
-      const { data } = await tmdbClient.get(
-        `/movie/${tmdbId}`,
+      const { data } = await axios.get(
+        `https://api.themoviedb.org/3/movie/${tmdbId}`,
         {
           params: {
+            api_key: process.env.TMDB_API_KEY,
             append_to_response: "videos",
           },
         }
@@ -217,85 +212,85 @@ exports.createContent = async (req, res) => {
 
 
 
-exports.createContentFromTMDB = async (req, res) => {
-  try {
-    const { tmdbId } = req.body;
+// exports.createContentFromTMDB = async (req, res) => {
+//   try {
+//     const { tmdbId } = req.body;
 
-    if (!tmdbId) {
-      return res.status(400).json({
-        success: false,
-        message: "tmdbId is required",
-      });
-    }
+//     if (!tmdbId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "tmdbId is required",
+//       });
+//     }
 
-    const { data } = await tmdbClient.get(
-      `/movie/${tmdbId}`,
-      {
-        params: {
-          append_to_response: "videos",
-        },
-      }
-    );
+//     const { data } = await axios.get(
+//       `https://api.themoviedb.org/3/movie/${tmdbId}`,
+//       {
+//         params: {
+//           api_key: process.env.TMDB_API_KEY,
+//           append_to_response: "videos",
+//         },
+//       }
+//     );
 
-    // ✅ safer duplicate check
-    const exists = await Content.findOne({
-      $or: [
-        { tmdbId: Number(tmdbId) },
-        {
-          title: { $regex: new RegExp(`^${data.title}$`, "i") },
-          type: "movie",
-        },
-      ],
-    });
+//     // ✅ safer duplicate check
+//     const exists = await Content.findOne({
+//       $or: [
+//         { tmdbId: tmdbId.toString() },
+//         {
+//           title: { $regex: new RegExp(`^${data.title}$`, "i") },
+//           type: "movie",
+//         },
+//       ],
+//     });
 
-    if (exists) {
-      return res.status(400).json({
-        success: false,
-        message: "Content already exists",
-      });
-    }
+//     if (exists) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Content already exists",
+//       });
+//     }
 
-    const trailer = data.videos?.results?.find(
-      (v) => v.type === "Trailer" && v.site === "YouTube"
-    );
+//     const trailer = data.videos?.results?.find(
+//       (v) => v.type === "Trailer" && v.site === "YouTube"
+//     );
 
-    const content = await Content.create({
-      title: data.title,
-      type: "movie",
-      sourceType: "tmdb",
-      description: data.overview,
-      duration: data.runtime || 0,
-      languages:
-        data.spoken_languages?.map((l) => l.english_name) || [
-          data.original_language,
-        ],
-      genres: data.genres?.map((g) => g.name) || [],
-      releaseDate: data.release_date,
-      poster: data.poster_path
-        ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
-        : null,
-      trailerUrl: trailer
-        ? `https://www.youtube.com/watch?v=${trailer.key}`
-        : null,
-      tmdbId: Number(tmdbId),
-      isActive: true,
-      approvalStatus: "approved",
-    });
+//     const content = await Content.create({
+//       title: data.title,
+//       type: "movie",
+//       description: data.overview,
+//       duration: data.runtime || 0,
+//       languages:
+//         data.spoken_languages?.map((l) => l.english_name) || [
+//           data.original_language,
+//         ],
+//       genres: data.genres?.map((g) => g.name) || [],
+//       releaseDate: data.release_date,
+//       poster: data.poster_path
+//         ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
+//         : null,
+//       trailerUrl: trailer
+//         ? `https://www.youtube.com/watch?v=${trailer.key}`
+//         : null,
+//       tmdbId: tmdbId.toString(),
+//       isActive: true,
+//       approvalStatus: "approved",
+//     });
 
-    return res.status(201).json({
-      success: true,
-      message: "Content created from TMDB",
-      data: content,
-    });
-  } catch (error) {
-    console.log("TMDB CREATE ERROR:", error.message);
+//     return res.status(201).json({
+//       success: true,
+//       message: "Content created from TMDB",
+//       data: content,
+//     });
+//   } catch (error) {
+//     console.log("TMDB CREATE ERROR:", error.message);
 
-    return res.status(500).json({
-      success: false,
-      message: "Failed to create content from TMDB",
-    });
-  }
-};
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to create content from TMDB",
+//     });
+//   }
+// };
 
 // =====================================
 // GET ALL CONTENTS

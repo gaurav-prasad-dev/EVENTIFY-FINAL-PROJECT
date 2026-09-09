@@ -11,6 +11,7 @@ const {
   googleLogin,
   logout,
   requestOrganizer,
+  refreshAccessToken,
   // getMe,
 } = require("../controllers/Auth");
 
@@ -19,6 +20,8 @@ const { auth } = require("../middlewares/auth");
 // ======================================================
 // 🔓 PUBLIC ROUTES
 // ======================================================
+
+router.post("/refresh-token", refreshAccessToken);
 
 // ✅ SEND OTP
 router.post(

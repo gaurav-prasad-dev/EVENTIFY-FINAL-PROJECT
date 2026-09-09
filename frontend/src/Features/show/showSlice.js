@@ -6,9 +6,8 @@ export const fetchShowsByContent = createAsyncThunk(
   "shows/fetchByContent",
   async ({ contentId, date, cityId }, thunkAPI) => {
     try {
-      const res = await getShowsByContent(contentId, date, cityId);
-     console.log(res?.data);
-      return res.data; // ✅ extract actual data
+      const data = await getShowsByContent(contentId, date, cityId);
+      return data || [];
     } catch (error) {
       return thunkAPI.rejectWithValue(
         error.response?.data?.message || error.message
@@ -22,8 +21,8 @@ export const fetchShowById = createAsyncThunk(
   "shows/fetchById",
   async (showId, thunkAPI) => {
     try {
-      const res = await getShowById(showId);
-      return res.data;
+      const data = await getShowById(showId);
+      return data || null;
     } catch (error) {
       return thunkAPI.rejectWithValue(
         error.response?.data?.message || error.message

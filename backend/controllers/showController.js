@@ -9,10 +9,12 @@ const { TrustProductsChannelEndpointAssignmentContextImpl } = require("twilio/li
 // =======================================================
 // CREATE SINGLE SHOW
 // =======================================================
+
+
 exports.createSingleShow = async (req, res) => {
   try {
     const {
-      content,
+      contentId,
       screenId,
       date,
       startTime,
@@ -22,60 +24,56 @@ exports.createSingleShow = async (req, res) => {
       publishedStatus,
     } = req.body;
 
-    // ================= VALIDATION =================
-    if (!content || !screenId || !date || !startTime || !endTime || !basePrice) {
+    // 1. VALIDATION
+    if (!contentId || !screenId || !date || !startTime || !endTime || !basePrice) {
       return res.status(400).json({
         success: false,
         message: "All fields are required",
       });
     }
 
-    // ================= CONTENT VALIDATION =================
-    const contentExists = await Content.findById(content);
+    // 2. GET CONTENT (ONLY FROM DB)
+    const content = await Content.findById(contentId);
 
-    if (!contentExists) {
+    if (!content) {
       return res.status(404).json({
         success: false,
         message: "Content not found",
       });
     }
 
-    // ================= SCREEN =================
-    const screenData = await Screen.findById(screenId).populate({
+    if (!content.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: "Content is not active",
+      });
+    }
+
+    // 3. GET SCREEN
+    const screen = await Screen.findById(screenId).populate({
       path: "venue",
       populate: { path: "city" },
     });
 
-    if (!screenData) {
+    if (!screen) {
       return res.status(404).json({
         success: false,
         message: "Screen not found",
       });
     }
 
-    if (screenData.venue.status !== "approved") {
-      return res.status(400).json({
-        success: false,
-        message: "Venue not approved by admin",
-      });
-    }
-
-
-// const cityId = new mongoose.Types.ObjectId(req.body.city);
-  
-const cityId = screenData.venue.city._id;
-
-// ================= DATE/TIME =================
+    // 4. DATE NORMALIZATION
     const showDate = new Date(date);
     showDate.setHours(0, 0, 0, 0);
 
+    // 5. TIME VALIDATION
     const start = new Date(date);
     const [sh, sm] = startTime.split(":");
-    start.setHours(+sh, +sm, 0, 0);
+    start.setHours(+sh, +sm);
 
     const end = new Date(date);
     const [eh, em] = endTime.split(":");
-    end.setHours(+eh, +em, 0, 0);
+    end.setHours(+eh, +em);
 
     if (start >= end) {
       return res.status(400).json({
@@ -84,34 +82,34 @@ const cityId = screenData.venue.city._id;
       });
     }
 
-    // ================= OVERLAP CHECK =================
-   const overlappingShow = await Show.findOne({
-  screen: screenId,
-  showDate,
-  startTime,
-  status: "Active",
-});
+    // 6. OVERLAP CHECK
+    const overlap = await Show.findOne({
+      screen: screenId,
+      showDate,
+      status: "Active",
+      startTime,
+    });
 
-    if (overlappingShow) {
+    if (overlap) {
       return res.status(400).json({
         success: false,
-        message: "Another show already exists during this time",
+        message: "Show already exists in this slot",
       });
     }
 
-    // ================= CREATE SHOW =================
+    // 7. CREATE SHOW
     const show = await Show.create({
-      content,
+      content: content._id,
+      contentTypeSnapshot: content.type,
       screen: screenId,
-      city: cityId,
+      city: screen.venue.city._id,
       showDate,
       startTime,
       endTime,
       basePrice,
-      features: features || screenData.features || [],
+      features: features || screen.features || [],
       organizerId: req.user._id,
-      publishedStatus:   publishedStatus || "draft",
-       approvalStatus: "approved", // optional (if admin flow skipped)
+      publishedStatus: publishedStatus || "draft",
       status: "Active",
     });
 
@@ -122,13 +120,148 @@ const cityId = screenData.venue.city._id;
     });
 
   } catch (error) {
-    console.log("CREATE SHOW ERROR:", error);
+    console.log(error);
     return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 };
+
+
+
+
+
+
+
+
+
+
+
+
+// exports.createSingleShow = async (req, res) => {
+//   try {
+//     const {
+//       content,
+//       screenId,
+//       date,
+//       startTime,
+//       endTime,
+//       basePrice,
+//       features,
+//       publishedStatus,
+//     } = req.body;
+
+//     // ================= VALIDATION =================
+//     if (!content || !screenId || !date || !startTime || !endTime || !basePrice) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "All fields are required",
+//       });
+//     }
+
+//     // ================= CONTENT VALIDATION =================
+//     const contentExists = await Content.findById(content);
+
+//     if (!contentExists) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Content not found",
+//       });
+//     }
+
+//     // ================= SCREEN =================
+//     const screenData = await Screen.findById(screenId).populate({
+//       path: "venue",
+//       populate: { path: "city" },
+//     });
+
+//     if (!screenData) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Screen not found",
+//       });
+//     }
+
+//     if (screenData.venue.status !== "approved") {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Venue not approved by admin",
+//       });
+//     }
+
+
+// // const cityId = new mongoose.Types.ObjectId(req.body.city);
+  
+// const cityId = screenData.venue.city._id;
+
+// // ================= DATE/TIME =================
+//     const showDate = new Date(date);
+//     showDate.setHours(0, 0, 0, 0);
+
+//     const start = new Date(date);
+//     const [sh, sm] = startTime.split(":");
+//     start.setHours(+sh, +sm, 0, 0);
+
+//     const end = new Date(date);
+//     const [eh, em] = endTime.split(":");
+//     end.setHours(+eh, +em, 0, 0);
+
+//     if (start >= end) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "End time must be after start time",
+//       });
+//     }
+
+//     // ================= OVERLAP CHECK =================
+//    const overlappingShow = await Show.findOne({
+//   screen: screenId,
+//   showDate,
+//   startTime,
+//   status: "Active",
+// });
+
+//     if (overlappingShow) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Another show already exists during this time",
+//       });
+//     }
+
+//     // ================= CREATE SHOW =================
+//     const show = await Show.create({
+//       content,
+//       screen: screenId,
+//       city: cityId,
+//       showDate,
+//       startTime,
+//       endTime,
+//       basePrice,
+//       features: features || screenData.features || [],
+//       organizerId: req.user._id,
+//       publishedStatus:   publishedStatus || "draft",
+//        approvalStatus: "approved", // optional (if admin flow skipped)
+//       status: "Active",
+//     });
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "Show created successfully",
+//       data: show,
+//     });
+
+//   } catch (error) {
+//     console.log("CREATE SHOW ERROR:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// };
+
+
+
 
 // =======================================================
 // GET SHOWS
@@ -592,9 +725,16 @@ exports.getShowById = async (req, res) => {
   try {
     const { id } = req.params;
 
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid show ID",
+      });
+    }
+
     const show = await Show.findOne({
-      _id: req.params.id,
-      approvalStatus: "approved",
+      _id: id,
+      status: { $ne: "Cancelled" },
     })
       .populate({
         path: "screen",
@@ -606,7 +746,7 @@ exports.getShowById = async (req, res) => {
       })
       .populate({
         path: "content",
-        select: "title poster description type",
+        select: "title poster description type tmdbId",
       });
 
     if (!show) {
@@ -925,53 +1065,67 @@ exports.getShowsByContent = async (req, res) => {
     const { contentId } = req.params;
     const { date, cityId } = req.query;
 
-    const content = await Content.findOne({
-      tmdbId: Number(contentId),
-    });
-
-    if (!content) {
-      return res.json({ success: true, data: [] });
+    if (!contentId) {
+      return res.status(400).json({
+        success: false,
+        message: "contentId is required",
+      });
     }
 
-  
-const [year, month, day] = date.split("-").map(Number);
+    // 1. Find content either by MongoDB _id or by tmdbId
+    let content = null;
+    if (mongoose.Types.ObjectId.isValid(contentId)) {
+      content = await Content.findById(contentId);
+    }
+    if (!content && !isNaN(Number(contentId))) {
+      content = await Content.findOne({ tmdbId: Number(contentId) });
+    }
 
-const start = new Date(year, month - 1, day);
-start.setHours(0, 0, 0, 0);
+    if (!content) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        message: "No shows available for this content",
+      });
+    }
 
-const end = new Date(year, month - 1, day);
-end.setHours(23, 59, 59, 999);
+    // 2. City lookup (support ObjectId or city name)
+    let cityDoc = null;
+    if (cityId) {
+      if (mongoose.Types.ObjectId.isValid(cityId)) {
+        cityDoc = await City.findById(cityId);
+      }
+      if (!cityDoc) {
+        cityDoc = await City.findOne({
+          name: { $regex: new RegExp(`^${cityId}$`, "i") },
+        });
+      }
+    }
 
-console.log({ start, end });
+    // 3. Date filtering
+    const matchStage = {
+      content: content._id,
+      status: "Active",
+    };
 
-console.log({
-  contentId: content?._id,
-  cityId,
-  start,
-  end,
-});
-const rawShows = await Show.find({});
+    if (cityDoc) {
+      matchStage.city = cityDoc._id;
+    }
 
-console.log(rawShows.map(s => ({
-  city: s.city,
-  type: typeof s.city
-})));
+    if (date) {
+      const parts = date.split("-").map(Number);
+      if (parts.length === 3 && !parts.some(isNaN)) {
+        const [year, month, day] = parts;
+        const start = new Date(year, month - 1, day, 0, 0, 0);
+        const end = new Date(year, month - 1, day, 23, 59, 59, 999);
+        matchStage.showDate = { $gte: start, $lte: end };
+      }
+    }
+
     const shows = await Show.aggregate([
       {
-        $match: {
-          content: content._id,
-
-          // ✅ FIXED (STRING MATCH)
-          city: new mongoose.Types.ObjectId(cityId),
-
-
-          showDate: { $gte: start, $lte: end },
-          status: "Active",
-          approvalStatus: "approved",
-          publishedStatus: "published",
-        },
+        $match: matchStage,
       },
-
       {
         $lookup: {
           from: "screens",
@@ -981,7 +1135,6 @@ console.log(rawShows.map(s => ({
         },
       },
       { $unwind: "$screen" },
-
       {
         $lookup: {
           from: "venues",
@@ -991,7 +1144,6 @@ console.log(rawShows.map(s => ({
         },
       },
       { $unwind: "$venue" },
-
       {
         $group: {
           _id: "$venue._id",
@@ -1006,17 +1158,22 @@ console.log(rawShows.map(s => ({
           },
         },
       },
-
-      { $sort: { venueName: 1 } },
+      {
+        $sort: { venueName: 1 },
+      },
     ]);
-console.log("FOUND CONTENT:", content);
-console.log("FOUND SHOWS:", shows);
-    return res.json({
+
+    return res.status(200).json({
       success: true,
       data: shows,
     });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    console.error("GET SHOWS ERROR:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };

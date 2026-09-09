@@ -22,6 +22,12 @@ const showSchema = new mongoose.Schema(
       index: true,
     },
 
+    contentTypeSnapshot: {
+  type: String,
+  enum: ["movie", "event"],
+  required: true,
+},
+
     // ===================== LOCATION =====================
    city: {
   type: mongoose.Schema.Types.ObjectId,
@@ -50,6 +56,11 @@ const showSchema = new mongoose.Schema(
       enum: ["morning", "afternoon", "evening", "night"],
     },
 
+    basePrice: {
+      type: Number,
+      required: true,
+    },
+
     // ===================== FEATURES =====================
     features: {
       type: [String],
@@ -75,11 +86,30 @@ const showSchema = new mongoose.Schema(
     ],
 
     // ===================== BOOKINGS =====================
-    bookedSeats: [
+    // bookedSeats: [
+    //   {
+    //     type: String,
+    //   },
+    // ],
+
+     bookedSeats: [
       {
-        type: String,
+        seatNumber: String,
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        bookedAt: {
+          type: Date,
+          default: Date.now,
+        },
       },
     ],
+
+    totalSeats: {
+      type: Number,
+    },
+
 
     // ===================== STATUS =====================
     status: {
@@ -117,5 +147,12 @@ const showSchema = new mongoose.Schema(
 // ===================== PERFORMANCE INDEXES =====================
 showSchema.index({ city: 1, showDate: 1 });
 showSchema.index({ content: 1, showDate: 1 });
+
+showSchema.index({ screen: 1, showDate: 1 });
+showSchema.index({
+  status: 1,
+  approvalStatus: 1,
+  publishedStatus: 1,
+});
 
 module.exports = mongoose.model("Show", showSchema);
