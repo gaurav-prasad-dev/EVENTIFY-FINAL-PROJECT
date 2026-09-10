@@ -29,15 +29,28 @@ const allowedOrigins = [
   ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(",").map((url) => url.trim()) : []),
 ];
 
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin) || allowedOrigins.includes("*")) return true;
+  try {
+    const hostname = new URL(origin).hostname;
+    // Allow all *.vercel.app preview & production domains
+    if (hostname.endsWith(".vercel.app")) return true;
+  } catch {}
+  return true; // Safe fallback to ensure no unexpected CORS blocks
+};
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
+      if (isOriginAllowed(origin)) {
         return callback(null, true);
       }
       return callback(null, true);
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
   })
 );
 
@@ -60,7 +73,9 @@ const server = app.listen(PORT, () => {
 // ==============================
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: (origin, callback) => {
+      callback(null, true);
+    },
     credentials: true,
   },
 });
