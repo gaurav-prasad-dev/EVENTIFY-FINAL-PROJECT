@@ -43,6 +43,7 @@ const {
   getAdminStats,
 
   // ================= VENUES =================
+  getAllVenues,
   getPendingVenues,
   approveVenue,
   rejectVenue,
@@ -186,6 +187,14 @@ router.patch(
 // ======================================================
 // 🏢 VENUE MANAGEMENT
 // ======================================================
+
+// GET ALL VENUES
+router.get(
+  "/venues",
+  auth,
+  isAdmin,
+  getAllVenues
+);
 
 // GET PENDING VENUES
 router.get(

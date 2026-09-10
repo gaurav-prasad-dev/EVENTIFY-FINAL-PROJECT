@@ -1,5 +1,7 @@
 const Show = require("../models/Show");
 const Booking = require("../models/BookingSchema");
+const Venue = require("../models/Venue");
+const Screen = require("../models/Screen");
 
 // ==============================
 // 🔧 HELPERS
@@ -288,13 +290,47 @@ exports.getOrganizerUpcomingShows = async (req, res) => {
 
 exports.getMyVenues = async (req, res) => {
   try {
-    const venues = await Venue.find({
+    let venues = await Venue.find({
       createdBy: req.user.id,
-    }).populate("city");
+    })
+      .populate("city")
+      .sort({ createdAt: -1 })
+      .lean();
 
-    res.json({ success: true, data: venues });
+    // If organizer hasn't created custom venues, return system approved venues
+    if (venues.length === 0) {
+      venues = await Venue.find({
+        status: "approved",
+        isActive: true,
+      })
+        .populate("city")
+        .sort({ createdAt: -1 })
+        .lean();
+    }
+
+    const venueIds = venues.map((v) => v._id);
+    const screens = await Screen.find({ venue: { $in: venueIds } })
+      .select("-seatLayout")
+      .lean();
+
+    const venuesWithScreens = venues.map((v) => ({
+      ...v,
+      screens: screens.filter(
+        (s) => s.venue?.toString() === v._id.toString()
+      ),
+    }));
+
+    return res.status(200).json({
+      success: true,
+      count: venuesWithScreens.length,
+      data: venuesWithScreens,
+    });
   } catch (err) {
-    res.status(500).json({ success: false });
+    console.error("GET MY VENUES ERROR:", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message || "Error fetching organizer venues",
+    });
   }
 };
 

@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import {
   getSeatLayout,
   lockSeats,
+  unlockSeats,
   createBooking,
   getMyBookings,
 } from "./bookingApi";
@@ -28,6 +29,19 @@ export const lockSeatThunk = createAsyncThunk(
       return seatId;
     } catch {
       return thunkAPI.rejectWithValue("Seat lock failed");
+    }
+  }
+);
+
+// 🔓 UNLOCK SEAT
+export const unlockSeatThunk = createAsyncThunk(
+  "booking/unlockSeat",
+  async ({ showId, seatId }, thunkAPI) => {
+    try {
+      await unlockSeats(showId, [seatId]);
+      return seatId;
+    } catch {
+      return thunkAPI.rejectWithValue("Seat unlock failed");
     }
   }
 );
@@ -144,7 +158,13 @@ const bookingSlice = createSlice({
       })
       .addCase(fetchSeatsThunk.fulfilled, (state, action) => {
         state.loadingSeats = false;
-        state.seats = action.payload;
+        state.seats = action.payload || [];
+
+        // ✅ Automatically restore locked seats into selectedSeats on refresh
+        const myLocked = (action.payload || []).filter(
+          (s) => s.status === "MY_LOCKED"
+        );
+        state.selectedSeats = myLocked;
       })
       .addCase(fetchSeatsThunk.rejected, (state, action) => {
         state.loadingSeats = false;
@@ -161,16 +181,26 @@ const bookingSlice = createSlice({
         const seatId = action.payload;
 
         state.seats = state.seats.map((s) =>
-          s.id === seatId ? { ...s, status: "LOCKED" } : s
+          s.id === seatId ? { ...s, status: "MY_LOCKED" } : s
         );
       })
       .addCase(lockSeatThunk.rejected, (state, action) => {
         state.lockingSeat = false;
         state.error = action.payload;
 
-        // ✅ safety reset
+        // ✅ only reset the seat that failed to lock
+        const seatId = action.meta?.arg?.seatId;
+        if (seatId) {
+          state.seats = state.seats.map((s) =>
+            s.id === seatId ? { ...s, status: "AVAILABLE" } : s
+          );
+        }
+      })
+      // 🔓 UNLOCK SEAT
+      .addCase(unlockSeatThunk.fulfilled, (state, action) => {
+        const seatId = action.payload;
         state.seats = state.seats.map((s) =>
-          s.status === "LOCKED" ? { ...s, status: "AVAILABLE" } : s
+          s.id === seatId ? { ...s, status: "AVAILABLE" } : s
         );
       })
 

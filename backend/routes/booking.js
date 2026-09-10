@@ -7,6 +7,7 @@ const router = express.Router();
 
 const {
   lockSeats,
+  unlockSeats,
   createBooking,
   confirmBooking,
   getBookingById,
@@ -25,6 +26,13 @@ router.post(
   "/lock-seats",
   auth,
   lockSeats
+);
+
+// ✅ UNLOCK SEATS (WHEN USER DESELECTS)
+router.post(
+  "/unlock-seats",
+  auth,
+  unlockSeats
 );
 
 // ✅ GET SEAT LAYOUT (allows guest viewing, associates user if authenticated)

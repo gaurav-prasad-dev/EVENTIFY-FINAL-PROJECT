@@ -98,7 +98,7 @@ export const fetchMyShows = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const res = await getMyShowsApi();
-      return res.data;
+      return res?.data ?? res;
     } catch (err) {
       return rejectWithValue(
         err?.response?.data?.message || "Failed to fetch my shows"
@@ -170,7 +170,7 @@ export const fetchMyVenues = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const res = await getMyVenuesApi();
-      return res.data;
+      return res?.data ?? res;
     } catch (err) {
       return rejectWithValue(
         err?.response?.data?.message || "Failed to fetch venues"
@@ -240,7 +240,9 @@ const organizerSlice = createSlice({
     // ================= MY SHOWS =================
     builder.addCase(fetchMyShows.fulfilled, (state, action) => {
       state.loading = false;
-      state.myShows = action.payload?.data || [];
+      state.myShows = Array.isArray(action.payload)
+        ? action.payload
+        : action.payload?.data || [];
     });
 
     // ================= DELETE =================
@@ -271,7 +273,9 @@ const organizerSlice = createSlice({
     // ================= VENUES =================
     builder.addCase(fetchMyVenues.fulfilled, (state, action) => {
       state.loading = false;
-      state.venues = action.payload?.data || [];
+      state.venues = Array.isArray(action.payload)
+        ? action.payload
+        : action.payload?.data || [];
     });
 
     // ================= GLOBAL LOADING =================

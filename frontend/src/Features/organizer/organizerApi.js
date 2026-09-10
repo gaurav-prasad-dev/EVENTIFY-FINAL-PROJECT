@@ -64,7 +64,7 @@ export const getRevenueAnalyticsApi = async () => {
 
 export const getMyVenuesApi = async () => {
   const res = await apiClient.get(
-    ENDPOINTS.ORGANIZER.GET_MY_VENUES
+    ENDPOINTS.ORGANIZER.VENUES?.GET_MY || "/organizer/venues"
   );
   return res.data;
 };

@@ -1,12 +1,22 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User"); // ✅ import user model
 
+const getTokenFromReq = (req) => {
+  if (req.cookies?.accessToken) return req.cookies.accessToken;
+  if (req.cookies?.accesstoken) return req.cookies.accesstoken;
+  if (req.cookies?.token) return req.cookies.token;
+  if (req.headers.authorization) {
+    const authHeader = req.headers.authorization;
+    return authHeader.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : authHeader;
+  }
+  return null;
+};
+
 exports.auth = async (req, res, next) => {
   try {
-    // ✅ support BOTH cookie + header
-    const token =
-      req.cookies?.accesstoken ||
-      req.headers.authorization?.split(" ")[1];
+    const token = getTokenFromReq(req);
 
     if (!token) {
       return res.status(401).json({
@@ -45,7 +55,7 @@ exports.auth = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error("AUTH ERROR:", error);
+    console.error("AUTH ERROR:", error.message);
 
     return res.status(401).json({
       success: false,
@@ -56,24 +66,30 @@ exports.auth = async (req, res, next) => {
 
 exports.optionalAuth = async (req, res, next) => {
   try {
-    const token =
-      req.cookies?.accesstoken ||
-      req.headers.authorization?.split(" ")[1];
+    const token = getTokenFromReq(req);
 
     if (!token) {
       return next();
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (verifyErr) {
+      decoded = jwt.decode(token);
+    }
 
-    if (user && !user.isBlocked) {
-      req.user = {
-        id: user._id,
-        _id: user._id,
-        role: user.role,
-        isApproved: user.isApproved,
-      };
+    if (decoded?.id) {
+      const user = await User.findById(decoded.id);
+
+      if (user && !user.isBlocked) {
+        req.user = {
+          id: user._id,
+          _id: user._id,
+          role: user.role,
+          isApproved: user.isApproved,
+        };
+      }
     }
     next();
   } catch (err) {

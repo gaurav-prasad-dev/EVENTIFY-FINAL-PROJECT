@@ -7,251 +7,144 @@ const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require("google-auth-library");
 const { sendSMS } = require("../utils/smsSender");
 
-exports.sendOtp = async(req,res) =>{
-    try{
+const getCookieOptions = (maxAge) => {
+  const isProduction = process.env.NODE_ENV === "production";
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    maxAge,
+  };
+};
 
-        const{email,phone} = req.body;
+exports.sendOtp = async (req, res) => {
+  try {
+    const { email, phone } = req.body;
 
-        if(!email && !phone){
-             return res.status(400).json({
+    if (!email && !phone) {
+      return res.status(400).json({
         success: false,
         message: "Email or phone is required",
       });
-        }
+    }
 
-        const identifier = email || `+91${phone}`;
+    const identifier = email || `+91${phone}`;
 
-        const existingOtp = await Otp.findOne({ identifier });
-        if(existingOtp && existingOtp.expiresAt > new Date()){
-            return res.status(400).json({
-                success:false,
-                message:"OTP already sent. please wait"
-            })
-        }
-        await Otp.deleteMany({ identifier });
+    const existingOtp = await Otp.findOne({ identifier });
+    if (existingOtp && existingOtp.expiresAt > new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP already sent. Please wait before requesting another.",
+      });
+    }
+    await Otp.deleteMany({ identifier });
 
-        const otp = otpGenerator.generate(6,{
+    const otp = otpGenerator.generate(6, {
       upperCaseAlphabets: false,
       lowerCaseAlphabets: false,
       specialChars: false,
+    });
+
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    await Otp.create({
+      identifier,
+      otp,
+      expiresAt,
+    });
+
+    if (email) {
+      await mailSender(
+        email,
+        "Your OTP for Eventify Login",
+        `<h2>Eventify Login OTP</h2><p>Your one-time login OTP is: <strong>${otp}</strong></p><p>This OTP will expire in 5 minutes.</p>`
+      );
+    } else {
+      if (
+        !process.env.TWILIO_PHONE_NUMBER ||
+        process.env.TWILIO_PHONE_NUMBER === "your_twilio_number"
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "SMS service is not configured. Please login using your Email address.",
         });
+      }
+      await sendSMS(identifier, otp);
+    }
 
-        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-
-        await Otp.create({
-            identifier,
-            otp,
-            expiresAt,
-        });
-
-        if(email){
-             await mailSender(email,
-            "Your OTP for login",
-            `<h1>Your OTP is ${otp}</h1>`
-        );
-
-        }else{
-             
-        await sendSMS(identifier , otp);
-        }
-
-       
-
-
-          return res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "OTP sent successfully",
     });
-    }catch(error){
-
-        return res.status(500).json({
+  } catch (error) {
+    console.error("SEND OTP ERROR:", error);
+    return res.status(500).json({
       success: false,
-      message: "Error sending OTP",
+      message: error.message || "Error sending OTP",
     });
+  }
+};
+
+
+
+exports.verifyOtp = async (req, res) => {
+  try {
+    const { email, phone, otp } = req.body;
+
+    const identifier = email || `+91${phone}`;
+
+    const otpRecord = await Otp.findOne({ identifier });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP not found or expired",
+      });
     }
-}
 
-
-
-exports.verifyOtp = async(req,res) =>{
-    try{
-
-        const{email,phone,otp} = req.body;
-
-        const identifier = email || `+91${phone}`;
-
-        const otpRecord = await Otp.findOne({ identifier });
-
-           if(!otpRecord){
-            return res.status(400).json({
-                 success: false,
-        message: "OTP not found",
-            });
-        }
-
-        if(otpRecord.otp !== String(otp)){
-               return res.status(400).json({
+    if (otpRecord.otp !== String(otp)) {
+      return res.status(400).json({
         success: false,
         message: "Invalid OTP",
       });
-        }
+    }
 
-        if(otpRecord.expiresAt < new Date()){
-             return res.status(400).json({
+    if (otpRecord.expiresAt < new Date()) {
+      return res.status(400).json({
         success: false,
         message: "OTP expired",
-        });
+      });
     }
 
-    //chech if user exist
-const query = email ? { email } : { phone: identifier };
+    // Check if user exists
+    const query = email ? { email } : { phone: identifier };
     let user = await User.findOne(query);
 
+    if (!user) {
+      user = await User.create({
+        email: email || undefined,
+        phone: phone ? identifier : undefined,
+        role: "user",
+      });
 
-    if(!user){
-        user = await User.create({
-            email: email || undefined,
-            phone: phone ? identifier : undefined,
+      await Profile.create({
+        user: user._id,
+        fullName: email ? email.split("@")[0] : `User-${identifier.slice(-4)}`,
+        isProfileComplete: false,
+      });
+    }
 
-             role: "user" 
-        });
-    
-
-    await Profile.create({
-        user:user._id,
-    })
-
-}
-
-    //jwt token
-
-    // const token = jwt.sign(
-    //     {
-    //         id: user._id,// payload (data inside token)
-    //         role: user.role,
-    //           isApproved: user.isApproved
-    //     },
-    //     process.env.JWT_SECRET,
-
-    //     { expiresIn:"7d"}
-    // );
+    let profile = await Profile.findOne({ user: user._id });
+    if (!profile) {
+      profile = await Profile.create({
+        user: user._id,
+        fullName: email ? email.split("@")[0] : `User-${identifier.slice(-4)}`,
+        isProfileComplete: false,
+      });
+    }
 
     const accessToken = jwt.sign(
-        {
-            id:  user._id,
-            role: user.role,
-            isApproved: user.isApproved,
-
-        },
-          process.env.JWT_SECRET,
-           { expiresIn: "15m" }
-    )
-
-    const refreshToken = jwt.sign(
-      {
-        id: user._id,
-      },
-      process.env.JWT_REFRESH_SECRET || (process.env.JWT_SECRET + "_REFRESH") || "DEFAULT_REFRESH_SECRET_KEY",
-      { expiresIn: "7d" }
-    );
-
-    user.refreshToken = refreshToken;
-    await user.save();
-
-    // Set auth cookies
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 15 * 60 * 1000, // 15 min
-    });
-
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
-
-    await Otp.deleteOne({_id: otpRecord._id});
-
-      return res.status(200).json({
-      success: true,
-      user,
-      accessToken,
-      refreshToken,
-    });
-
-
-
-    }catch(error){
-  console.error("VERIFY OTP ERROR:", error); // 👈 ADD THIS
-          return res.status(500).json({
-      success: false,
-      message: "OTP verification failed",
-
-         message: error.message, // 👈 show real erro
-    });
-
-    }
-}
-
-
-
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
-//This connects your backend with Google Auth system
-exports.googleLogin = async(req,res) =>{
-    try{
-
-        const { token: googleToken } = req.body;
-
-        //Frontend sends Google token after user clicks “Login with Google”
-        
-        const ticket = await client.verifyIdToken({
-            idToken: googleToken,
-            audience: process.env.GOOGLE_CLIENT_ID,
-        });
-
-        const payload = ticket.getPayload();
-
-        const { sub: googleId, email, name, picture } = payload;
-
-        let user = await User.findOne({email});
-
-        if (user) {
-  // If user exists but no googleId, link it
-  if (!user.googleId) {
-    user.googleId = googleId;
-    await user.save();
-  }
-} else {
-  // Create new user
-  user = await User.create({
-    email,
-    googleId,
-    isVerified: true,
-  });
-
-  await Profile.create({
-    user: user._id,
-    fullName: name,
-    ProfileImage: picture,
-    isProfileComplete: false,
-  });
-}
-       
-
-        // const jwtToken = jwt.sign(
-        //     {id: user._id,
-        //         role: user.role,
-        //         isApproved: user.isApproved
-        //     },
-        //     process.env.JWT_SECRET,
-        //     { expiresIn: "7d"}
-        // );
-
-         const accessToken = jwt.sign(
       {
         id: user._id,
         role: user.role,
@@ -261,144 +154,242 @@ exports.googleLogin = async(req,res) =>{
       { expiresIn: "15m" }
     );
 
-     const refreshToken = jwt.sign(
+    const refreshToken = jwt.sign(
       {
         id: user._id,
       },
-      process.env.JWT_REFRESH_SECRET || (process.env.JWT_SECRET + "_REFRESH") || "DEFAULT_REFRESH_SECRET_KEY",
+      process.env.JWT_REFRESH_SECRET ||
+        process.env.JWT_SECRET + "_REFRESH" ||
+        "DEFAULT_REFRESH_SECRET_KEY",
       { expiresIn: "7d" }
     );
 
-     user.refreshToken = refreshToken;
+    user.refreshToken = refreshToken;
     await user.save();
 
-
-      res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      maxAge: 15 * 60 * 1000,
-    });
-
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    //       //delete otp after use
-    // res.cookie("token", jwtToken,{
-    //     httpOnly: true,
-    //     secure:true,
-    //     sameSite: "none",
-    //     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-
-    // })
-
-
-          return res.status(200).json({
-      success: true,
-   
-      user,
-       accessToken,
+    // Set auth cookies with safe environment options
+    res.cookie("accessToken", accessToken, getCookieOptions(15 * 60 * 1000));
+    res.cookie(
+      "refreshToken",
       refreshToken,
-    
-    });
+      getCookieOptions(7 * 24 * 60 * 60 * 1000)
+    );
 
+    await Otp.deleteOne({ _id: otpRecord._id });
 
+    const userObj = user.toObject();
+    userObj.profile = profile;
+    userObj.name = profile?.fullName || user.email || user.phone;
+    userObj.firstName = userObj.name.split(" ")[0];
 
-
-    }catch(error){
-
-         return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-
-    }
-}
-
-exports.logout = async(req,res) => {
-    try{
-          const user = await User.findById(req.user.id);
-
-              if (user) {
-      user.refreshToken = null;
-      await user.save();
-    }
-
-        res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
-
-     return res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: "Logged Out Successfully",
+      user: userObj,
+      accessToken,
+      token: accessToken, // 👈 backwards-compatible alias
+      refreshToken,
+    });
+  } catch (error) {
+    console.error("VERIFY OTP ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "OTP verification failed",
+    });
+  }
+};
+
+
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// This connects your backend with Google Auth system
+exports.googleLogin = async (req, res) => {
+  try {
+    const { token: googleToken } = req.body;
+
+    if (!googleToken) {
+      return res.status(400).json({
+        success: false,
+        message: "Google token is required",
+      });
+    }
+
+    const ticket = await client.verifyIdToken({
+      idToken: googleToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
     });
 
-    }catch(error){
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name, picture } = payload;
 
-         return res.status(500).json({
+    let user = await User.findOne({ email });
+
+    if (user) {
+      if (!user.googleId) {
+        user.googleId = googleId;
+        await user.save();
+      }
+    } else {
+      user = await User.create({
+        email,
+        googleId,
+        isVerified: true,
+      });
+
+      await Profile.create({
+        user: user._id,
+        fullName: name,
+        ProfileImage: picture,
+        isProfileComplete: false,
+      });
+    }
+
+    let profile = await Profile.findOne({ user: user._id });
+    if (!profile) {
+      profile = await Profile.create({
+        user: user._id,
+        fullName: name,
+        ProfileImage: picture,
+        isProfileComplete: false,
+      });
+    }
+
+    const accessToken = jwt.sign(
+      {
+        id: user._id,
+        role: user.role,
+        isApproved: user.isApproved,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    const refreshToken = jwt.sign(
+      {
+        id: user._id,
+      },
+      process.env.JWT_REFRESH_SECRET ||
+        process.env.JWT_SECRET + "_REFRESH" ||
+        "DEFAULT_REFRESH_SECRET_KEY",
+      { expiresIn: "7d" }
+    );
+
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    // Set auth cookies with safe environment options
+    res.cookie("accessToken", accessToken, getCookieOptions(15 * 60 * 1000));
+    res.cookie(
+      "refreshToken",
+      refreshToken,
+      getCookieOptions(7 * 24 * 60 * 60 * 1000)
+    );
+
+    const userObj = user.toObject();
+    userObj.profile = profile;
+    userObj.name = profile?.fullName || name || user.email;
+    userObj.firstName = userObj.name.split(" ")[0];
+
+    return res.status(200).json({
+      success: true,
+      user: userObj,
+      accessToken,
+      token: accessToken, // 👈 backwards-compatible alias
+      refreshToken,
+    });
+  } catch (error) {
+    console.error("GOOGLE LOGIN ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Google login failed",
+    });
+  }
+};
+
+exports.logout = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+
+    if (userId) {
+      await User.findByIdAndUpdate(userId, { refreshToken: null });
+    }
+
+    const isProduction = process.env.NODE_ENV === "production";
+    const clearOptions = {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
+    };
+
+    res.clearCookie("accessToken", clearOptions);
+    res.clearCookie("refreshToken", clearOptions);
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    console.error("LOGOUT ERROR:", error);
+    return res.status(500).json({
       success: false,
       message: "Logout failed",
     });
-  
+  }
+};
 
+exports.requestOrganizer = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
     }
-}
 
-exports.requestOrganizer = async(req,res) => {
-    try{
+    user.role = "organizer";
+    user.isApproved = false;
 
-        const user = await User.findById(req.user.id);
+    await user.save();
 
-        user.role = "organizer";
-        user.isApproved = false;
-
-        await user.save();
-
-            res.json({
+    return res.json({
       success: true,
       message: "Request sent for organizer approval",
     });
+  } catch (error) {
+    return res.status(500).json({ message: "Error requesting organizer" });
+  }
+};
 
+exports.refreshAccessToken = async (req, res) => {
+  try {
+    const refreshToken =
+      req.cookies?.refreshToken || req.body?.refreshToken;
 
-    }catch(error){
-res.status(500).json({ message: "Error requesting organizer" });
-    }
-}
-
-
-exports.refreshAccessToken = async(req,res) => {
-    try{
-
-        const refreshToken = req.cookies.refreshToken;
-
-          if (!refreshToken) {
+    if (!refreshToken) {
       return res.status(401).json({
         success: false,
-        message: "No refresh token",
+        message: "No refresh token provided",
       });
     }
 
-        // verify refresh token
+    // Verify refresh token
     const decoded = jwt.verify(
       refreshToken,
-      process.env.JWT_REFRESH_SECRET || (process.env.JWT_SECRET + "_REFRESH") || "DEFAULT_REFRESH_SECRET_KEY"
+      process.env.JWT_REFRESH_SECRET ||
+        process.env.JWT_SECRET + "_REFRESH" ||
+        "DEFAULT_REFRESH_SECRET_KEY"
     );
-    
-
 
     const user = await User.findById(decoded.id);
 
-       if (!user || user.refreshToken !== refreshToken) {
+    if (!user || user.refreshToken !== refreshToken) {
       return res.status(403).json({
         success: false,
-        message: "Invalid refresh token",
+        message: "Invalid or expired refresh token",
       });
     }
 
-      // generate new access token
+    // Generate new access token
     const newAccessToken = jwt.sign(
       {
         id: user._id,
@@ -409,58 +400,53 @@ exports.refreshAccessToken = async(req,res) => {
       { expiresIn: "15m" }
     );
 
-       res.cookie("accessToken", newAccessToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 15 * 60 * 1000,
-    });
+    res.cookie(
+      "accessToken",
+      newAccessToken,
+      getCookieOptions(15 * 60 * 1000)
+    );
 
-
-      return res.status(200).json({
+    return res.status(200).json({
       success: true,
       accessToken: newAccessToken,
+      token: newAccessToken,
     });
-
-
-    }catch(error){
-
-           return res.status(401).json({
+  } catch (error) {
+    console.error("REFRESH TOKEN ERROR:", error.message);
+    return res.status(401).json({
       success: false,
       message: "Refresh token expired or invalid",
     });
+  }
+};
 
+exports.getMe = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    const user = await User.findById(userId).select("-refreshToken");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
     }
-}
 
+    const profile = await Profile.findOne({ user: user._id });
+    const userObj = user.toObject();
+    userObj.profile = profile;
+    userObj.name = profile?.fullName || user.email || user.phone;
+    userObj.firstName = userObj.name.split(" ")[0];
 
-
-
-
-
-
-
-
-
-
-
-
-// exports.getMe = async(req,res) => {
-//   try{
-
-//     const user = await User.findById(req.user.id).select("-password");
-
-
-//     return res.status(200).json({
-//       success: true,
-//       user,
-//     });
-
-//   }catch(error){
-//     return res.status(500).json({
-//       success: false,
-//       message: "Error fetching user",
-//     });
-
-//   }
-// }
+    return res.status(200).json({
+      success: true,
+      user: userObj,
+    });
+  } catch (error) {
+    console.error("GET ME ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error fetching user profile",
+    });
+  }
+};

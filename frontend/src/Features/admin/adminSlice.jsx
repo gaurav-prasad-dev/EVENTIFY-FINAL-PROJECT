@@ -221,6 +221,22 @@ export const fetchPendingVenues =
     }
   );
 
+export const fetchAllVenues =
+  createAsyncThunk(
+    "admin/fetchAllVenues",
+    async (status = "all", { rejectWithValue }) => {
+      try {
+        const query = status && status !== "all" ? `?status=${status}` : "";
+        const res = await apiClient.get(`/admin/venues${query}`);
+        return res.data?.data || [];
+      } catch (err) {
+        return rejectWithValue(
+          err.response?.data || err.message
+        );
+      }
+    }
+  );
+
 export const approveVenue =
   createAsyncThunk(
     "admin/approveVenue",
@@ -550,6 +566,14 @@ const adminSlice = createSlice({
         (state, action) => {
           state.loading = false;
           state.error = action.payload;
+        }
+      )
+
+      .addCase(
+        fetchAllVenues.fulfilled,
+        (state, action) => {
+          state.loading = false;
+          state.venues = Array.isArray(action.payload) ? action.payload : [];
         }
       )
 

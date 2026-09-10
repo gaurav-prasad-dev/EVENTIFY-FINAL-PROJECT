@@ -12,10 +12,10 @@ const {
   logout,
   requestOrganizer,
   refreshAccessToken,
-  // getMe,
+  getMe,
 } = require("../controllers/Auth");
 
-const { auth } = require("../middlewares/auth");
+const { auth, optionalAuth } = require("../middlewares/auth");
 
 // ======================================================
 // 🔓 PUBLIC ROUTES
@@ -41,9 +41,10 @@ router.post(
   googleLogin
 );
 
-// ✅ LOGOUT
+// ✅ LOGOUT (clears cookies and revokes session if authenticated)
 router.post(
   "/logout",
+  optionalAuth,
   logout
 );
 
@@ -59,10 +60,10 @@ router.post(
 );
 
 // ✅ GET CURRENT USER
-// router.get(
-//   "/me",
-//   auth,
-//   getMe
-// );
+router.get(
+  "/me",
+  auth,
+  getMe
+);
 
 module.exports = router;

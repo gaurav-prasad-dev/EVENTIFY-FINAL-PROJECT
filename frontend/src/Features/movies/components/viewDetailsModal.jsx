@@ -9,7 +9,7 @@ const ViewDetailsModal = () => {
     useSelector((state) => state.movies);
 console.log({ movieDetails, cast, reviews, posters });
 
-  const [activeTab, setActiveTab] = useState("reviews");
+  const [activeTab, setActiveTab] = useState("synopsis");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

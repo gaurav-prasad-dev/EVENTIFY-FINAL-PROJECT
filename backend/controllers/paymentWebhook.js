@@ -408,11 +408,17 @@ exports.verifyPayment = async (req, res) => {
     }
 
     // ✅ STEP 4: Mark seats booked
+    const newBookedSeats = (booking.seats || []).map((seatNumber) => ({
+      seatNumber,
+      userId: booking.user,
+      bookedAt: new Date(),
+    }));
+
     await Show.findByIdAndUpdate(
       booking.show,
       {
-        $addToSet: {
-          bookedSeats: { $each: booking.seats },
+        $push: {
+          bookedSeats: { $each: newBookedSeats },
         },
       }
     );

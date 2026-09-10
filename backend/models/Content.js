@@ -36,10 +36,10 @@ const contentSchema = new mongoose.Schema(
     },
 
     createdByRole: {
-  type: String,
-  enum: ["admin"],
-  default: "admin",
-},
+      type: String,
+      enum: ["admin", "organizer"],
+      default: "organizer",
+    },
 
 eventDetails: {
   location: String,

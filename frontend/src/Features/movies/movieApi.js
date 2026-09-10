@@ -22,7 +22,20 @@ export const getHomeData = async () => {
   }
 };
 
-// 🔍 SEARCH MOVIES
+// 🔍 SEARCH CATALOG MOVIES (PLATFORM DB ONLY - FOR PUBLIC PAGES / SEARCH BAR)
+export const searchCatalogMovies = async (query) => {
+  try {
+    const res = await apiClient.get(ENDPOINTS.CONTENT.SEARCH, {
+      params: { query },
+    });
+    return res.data;
+  } catch (error) {
+    console.log("SEARCH CATALOG MOVIES ERROR:", error);
+    throw error;
+  }
+};
+
+// 🔍 SEARCH TMDB MOVIES (EXTERNAL TMDB - FOR ORGANIZERS & ADMINS)
 export const searchMovies = async (query) => {
   try {
     const res = await apiClient.get(SEARCH, {

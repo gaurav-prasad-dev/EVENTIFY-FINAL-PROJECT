@@ -8,6 +8,7 @@ const Booking = require("../models/BookingSchema"); // KEEP ONLY ONE
 
 const Venue = require("../models/Venue");
 const Content = require("../models/Content");
+const Screen = require("../models/Screen");
 
 // ================= ADMIN =================
 
@@ -508,6 +509,48 @@ exports.getTopContent = async (req, res) => {
 };
 
 
+exports.getAllVenues = async (req, res) => {
+  try {
+    const { status, search } = req.query;
+    const filter = {};
+    if (status && status !== "all") {
+      filter.status = status;
+    }
+    if (search) {
+      filter.name = { $regex: search, $options: "i" };
+    }
+
+    const venues = await Venue.find(filter)
+      .populate("city")
+      .populate("createdBy", "name email")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const venueIds = venues.map((v) => v._id);
+    const screens = await Screen.find({ venue: venueIds })
+      .select("-seatLayout")
+      .lean();
+
+    const result = venues.map((v) => ({
+      ...v,
+      screens: screens.filter(
+        (s) => s.venue?.toString() === v._id.toString()
+      ),
+    }));
+
+    return res.status(200).json({
+      success: true,
+      count: result.length,
+      data: result,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 exports.getPendingVenues = async (req, res) => {
   try {
     const venues = await Venue.find({
@@ -544,6 +587,47 @@ exports.approveVenue = async (req, res) => {
 
     venue.status = "approved";
     await venue.save();
+
+    // Auto-provision default screens if venue doesn't have any
+    const existingScreens = await Screen.find({ venue: venue._id });
+    if (existingScreens.length === 0) {
+      const rows = ["A", "B", "C", "D", "E", "F"];
+      const genSeats = (count) => {
+        const seats = [];
+        let c = 0;
+        for (let r of rows) {
+          for (let i = 1; i <= 10; i++) {
+            if (c >= count) break;
+            seats.push({
+              seatNumber: `${r}${i}`,
+              row: r,
+              category: r === "A" ? "Premium" : "Standard",
+            });
+            c++;
+          }
+        }
+        return seats;
+      };
+
+      await Screen.create([
+        {
+          name: "Screen 1 - Audi 1 (Dolby Atmos)",
+          venue: venue._id,
+          totalSeats: 60,
+          seatLayout: genSeats(60),
+          features: ["Premium"],
+          sections: [{ name: "Standard", capacity: 50 }, { name: "Premium", capacity: 10 }],
+        },
+        {
+          name: "Screen 2 - Audi 2",
+          venue: venue._id,
+          totalSeats: 60,
+          seatLayout: genSeats(60),
+          features: ["Recliner"],
+          sections: [{ name: "Standard", capacity: 50 }, { name: "Premium", capacity: 10 }],
+        },
+      ]);
+    }
 
     return res.status(200).json({
       success: true,

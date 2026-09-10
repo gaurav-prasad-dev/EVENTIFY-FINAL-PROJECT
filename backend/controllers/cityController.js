@@ -57,26 +57,53 @@ const stateTrimmed = state?.trim();
 
 
 
-exports.getCities = async(req,res) => {
-try{
+const DEFAULT_CITIES = [
+  { name: "Mumbai", state: "Maharashtra" },
+  { name: "Delhi-NCR", state: "Delhi" },
+  { name: "Bengaluru", state: "Karnataka" },
+  { name: "Hyderabad", state: "Telangana" },
+  { name: "Ahmedabad", state: "Gujarat" },
+  { name: "Chennai", state: "Tamil Nadu" },
+  { name: "Kolkata", state: "West Bengal" },
+  { name: "Pune", state: "Maharashtra" },
+  { name: "Indore", state: "Madhya Pradesh" },
+  { name: "Jaipur", state: "Rajasthan" },
+  { name: "Chandigarh", state: "Punjab" },
+  { name: "Bhopal", state: "Madhya Pradesh" },
+  { name: "Lucknow", state: "Uttar Pradesh" },
+  { name: "Surat", state: "Gujarat" },
+  { name: "Kochi", state: "Kerala" },
+];
 
-    const cities = await City.find({isActive:true});
+exports.getCities = async (req, res) => {
+  try {
+    let cities = await City.find({ isActive: true }).sort({ name: 1 });
 
-     return res.status(200).json({
+    if (!cities || cities.length === 0) {
+      try {
+        await City.insertMany(
+          DEFAULT_CITIES.map((c) => ({ ...c, isActive: true }))
+        );
+        cities = await City.find({ isActive: true }).sort({ name: 1 });
+      } catch (seedErr) {
+        console.log("Auto-seed error (proceeding with defaults):", seedErr.message);
+        return res.status(200).json({
+          success: true,
+          cities: DEFAULT_CITIES.map((c, idx) => ({ ...c, _id: `default-${idx}` })),
+        });
+      }
+    }
+
+    return res.status(200).json({
       success: true,
       cities,
     });
-
-
-}catch(error){
-
-      return res.status(500).json({
+  } catch (error) {
+    return res.status(500).json({
       success: false,
       message: "Error fetching cities",
     });
-
-
-}
+  }
 };
 
 

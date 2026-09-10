@@ -6,6 +6,7 @@
 
 
 const Content = require("../models/Content");
+const Show = require("../models/Show");
 const axios = require("axios");
 const tmdbClient = require("../utils/tmdbClient");
 
@@ -249,9 +250,10 @@ exports.createContentFromTMDB = async (req, res) => {
     });
 
     if (exists) {
-      return res.status(400).json({
-        success: false,
-        message: "Content already exists",
+      return res.status(200).json({
+        success: true,
+        message: "Movie already in platform catalog",
+        data: exists,
       });
     }
 
@@ -278,6 +280,8 @@ exports.createContentFromTMDB = async (req, res) => {
         ? `https://www.youtube.com/watch?v=${trailer.key}`
         : null,
       tmdbId: Number(tmdbId),
+      createdBy: req.user?._id || req.user?.id,
+      createdByRole: req.user?.role || "organizer",
       isActive: true,
       approvalStatus: "approved",
     });
@@ -508,16 +512,41 @@ exports.searchContent = async (req, res) => {
       });
     }
 
+    const organizerShowContentIds = await Show.distinct("content", {
+      organizerId: { $exists: true, $ne: null },
+    });
+
     const results = await Content.find({
       title: { $regex: query, $options: "i" },
       isActive: true,
+      $or: [
+        { createdByRole: "organizer" },
+        { _id: { $in: organizerShowContentIds } },
+      ],
     })
       .limit(20)
       .sort({ createdAt: -1 });
 
+    const formatted = results.map((item) => ({
+      id: item._id.toString(),
+      _id: item._id.toString(),
+      tmdbId: item.tmdbId || null,
+      title: item.title,
+      poster: item.poster || null,
+      backdrop: item.backdrop || item.poster || null,
+      language: item.languages?.[0] || "Hindi",
+      rating: item.rating || "8.5",
+      releaseDate: item.releaseDate,
+      overview: item.description,
+      genres: item.genres || [],
+      certification: "UA16+",
+      duration: item.duration || 135,
+      type: item.type || "movie",
+    }));
+
     return res.status(200).json({
       success: true,
-      data: results,
+      data: formatted,
     });
 
   } catch (error) {

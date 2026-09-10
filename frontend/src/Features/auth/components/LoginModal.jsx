@@ -109,15 +109,16 @@ function LoginModal({ isOpen, onClose }) {
 
       const res = await verifyOtpApi(data);
 
-    dispatch(
-  setCredentials({
-    user: res.user,
-    token: res.token,
-  })
-);
+      dispatch(
+        setCredentials({
+          user: res.user,
+          token: res.accessToken || res.token,
+          accessToken: res.accessToken || res.token,
+        })
+      );
 
-// ✅ CLOSE MODAL
-onClose();
+      // ✅ CLOSE MODAL
+      onClose();
 
 // ✅ REDIRECT BASED ON ROLE
 if (res.user.role === "admin") {
@@ -233,14 +234,15 @@ if (res.user.role === "admin") {
                   });
 
                   dispatch(
-  setCredentials({
-    user: response.user,
-    token: response.token,
-  })
-);
+                    setCredentials({
+                      user: response.user,
+                      token: response.accessToken || response.token,
+                      accessToken: response.accessToken || response.token,
+                    })
+                  );
 
-// ✅ CLOSE MODAL
-onClose();
+                  // ✅ CLOSE MODAL
+                  onClose();
 
 // ✅ REDIRECT
 if (response.user.role === "admin") {

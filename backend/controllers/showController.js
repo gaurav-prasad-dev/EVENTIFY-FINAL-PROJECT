@@ -2,9 +2,10 @@
 const mongoose = require("mongoose");
 const Show = require("../models/Show");
 const Screen = require("../models/Screen");
+const Venue = require("../models/Venue");
 const City = require("../models/City");
 const Content = require("../models/Content");
-const { TrustProductsChannelEndpointAssignmentContextImpl } = require("twilio/lib/rest/trusthub/v1/trustProducts/trustProductsChannelEndpointAssignment");
+const User = require("../models/User");
 
 // =======================================================
 // CREATE SINGLE SHOW
@@ -24,8 +25,10 @@ exports.createSingleShow = async (req, res) => {
       publishedStatus,
     } = req.body;
 
+    const actualContentId = contentId || req.body.content;
+
     // 1. VALIDATION
-    if (!contentId || !screenId || !date || !startTime || !endTime || !basePrice) {
+    if (!actualContentId || !screenId || !date || !startTime || !endTime || !basePrice) {
       return res.status(400).json({
         success: false,
         message: "All fields are required",
@@ -33,7 +36,7 @@ exports.createSingleShow = async (req, res) => {
     }
 
     // 2. GET CONTENT (ONLY FROM DB)
-    const content = await Content.findById(contentId);
+    const content = await Content.findById(actualContentId);
 
     if (!content) {
       return res.status(404).json({

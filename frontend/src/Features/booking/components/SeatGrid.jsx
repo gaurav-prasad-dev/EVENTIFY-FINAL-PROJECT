@@ -43,36 +43,33 @@ const SeatGrid = ({
 
             <div className="flex gap-3 flex-wrap">
               {grouped[row].map((seat) => {
-                const isSelected = selectedSeats.some(
-                  (s) => s.id === seat.id
-                );
+                const isMyLocked = seat.status === "MY_LOCKED";
+                const isSelected =
+                  isMyLocked || selectedSeats.some((s) => s.id === seat.id);
 
                 const isDisabled =
                   seat.status === "BOOKED" ||
-                  seat.status === "LOCKED" ||
+                  (seat.status === "LOCKED" && !isMyLocked) ||
                   lockingSeat; // 🚨 prevent spam
 
                 return (
                   <div
                     key={seat.id}
                     onClick={() => {
-                     if (seat.status === "BOOKED") return;
-if (lockingSeat && !isSelected) return;
-
-handleSeatClick(seat);
+                      if (seat.status === "BOOKED") return;
+                      if (lockingSeat && !isSelected) return;
+                      handleSeatClick(seat);
                     }}
-                    className={`w-10 h-10 flex items-center justify-center rounded-md text-xs border transition
-
+                    className={`w-10 h-10 flex items-center justify-center rounded-md text-xs border font-medium transition
                     ${
                       seat.status === "BOOKED"
                         ? "bg-gray-300 text-gray-400"
+                        : isSelected
+                        ? "bg-purple-600 text-white scale-110 shadow-xs"
                         : seat.status === "LOCKED"
                         ? "bg-yellow-300 text-yellow-800"
-                        : isSelected
-                        ? "bg-purple-600 text-white scale-110"
-                        : "bg-white hover:border-blue-400"
+                        : "bg-white hover:border-purple-400 text-gray-700"
                     }
-
                     ${isDisabled ? "cursor-not-allowed opacity-70" : "cursor-pointer"}
                     `}
                   >

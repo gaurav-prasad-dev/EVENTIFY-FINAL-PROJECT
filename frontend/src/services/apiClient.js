@@ -1,5 +1,6 @@
 import axios from "axios";
 import { store } from "../app/store";
+import { updateAccessToken, logout } from "../Features/auth/authSlice";
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_BASE_URL,
@@ -9,10 +10,14 @@ const apiClient = axios.create({
 // REQUEST INTERCEPTOR
 apiClient.interceptors.request.use((config) => {
   const state = store.getState();
+  let token = state?.auth?.token || state?.auth?.accessToken;
 
-  const token = state?.auth?.token;
-
-  console.log("TOKEN FROM STORE:", token);
+  if (!token) {
+    try {
+      const savedAuth = JSON.parse(localStorage.getItem("auth"));
+      token = savedAuth?.token || savedAuth?.accessToken;
+    } catch {}
+  }
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -21,10 +26,77 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// RESPONSE INTERCEPTOR
+// REFRESH QUEUE STATE
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// RESPONSE INTERCEPTOR WITH AUTO REFRESH
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Check if error is 401 and request has not already been retried
+    const isAuthError = error.response?.status === 401;
+    const isRefreshCall = originalRequest?.url?.includes("/auth/refresh-token");
+    const isLoginCall =
+      originalRequest?.url?.includes("/auth/verify-otp") ||
+      originalRequest?.url?.includes("/auth/google-login");
+
+    if (isAuthError && !originalRequest._retry && !isRefreshCall && !isLoginCall) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshResponse = await axios.post(
+          `${import.meta.env.VITE_BASE_URL}/auth/refresh-token`,
+          {},
+          { withCredentials: true }
+        );
+
+        const newToken =
+          refreshResponse.data?.accessToken || refreshResponse.data?.token;
+
+        if (newToken) {
+          store.dispatch(updateAccessToken(newToken));
+
+          apiClient.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+          processQueue(null, newToken);
+          return apiClient(originalRequest);
+        }
+      } catch (refreshErr) {
+        processQueue(refreshErr, null);
+        store.dispatch(logout());
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
     console.log("API ERROR:", error.response?.data || error.message);
     return Promise.reject(error);
   }

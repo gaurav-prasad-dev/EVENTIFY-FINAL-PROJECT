@@ -1,7 +1,13 @@
 const Booking = require("../models/BookingSchema");
 const Show = require("../models/Show");
+const Screen = require("../models/Screen");
+const Venue = require("../models/Venue");
+const City = require("../models/City");
+const Content = require("../models/Content");
 const redisClient = require("../config/redis");
 const crypto = require("crypto");
+const QRCode = require("qrcode");
+const jwt = require("jsonwebtoken");
 const { lockSeatsLua } = require("../utils/redisScripts");
 
 // ==============================
@@ -86,6 +92,50 @@ exports.lockSeats = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Seat locking failed",
+    });
+  }
+};
+
+// ==============================
+// 1b. UNLOCK SEATS (USER UNSELECT)
+// ==============================
+exports.unlockSeats = async (req, res) => {
+  try {
+    const userId = String(req.user.id);
+    const { showId, seats } = req.body;
+
+    if (!showId || !Array.isArray(seats) || seats.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid request",
+      });
+    }
+
+    const userLockKey = `user:${userId}:locks:${showId}`;
+    const keys = seats.map((seat) => `show:${showId}:seat:${seat}`);
+
+    for (let i = 0; i < keys.length; i++) {
+      const owner = await redisClient.get(keys[i]);
+      if (owner === userId) {
+        await redisClient.del(keys[i]);
+        await redisClient.sRem(userLockKey, seats[i]);
+      }
+    }
+
+    global.io.to(showId).emit("seat_unlocked", {
+      seats,
+      userId,
+    });
+
+    return res.status(200).json({
+      success: true,
+      unlockedSeats: seats,
+    });
+  } catch (error) {
+    console.log("UNLOCK ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to unlock seats",
     });
   }
 };
@@ -251,42 +301,81 @@ exports.getSeatLayout = async (req, res) => {
       });
     }
 
-    const rows = ["A", "B", "C", "D"];
+    const screen = show.screen ? await Screen.findById(show.screen) : null;
+    const layout = (screen?.seatLayout && screen.seatLayout.length > 0)
+      ? screen.seatLayout
+      : null;
+
     const keys = [];
     const seatMap = [];
 
-    for (let row of rows) {
-      for (let i = 1; i <= 10; i++) {
-        const seatId = `${row}${i}`;
+    if (layout) {
+      for (let s of layout) {
+        const seatId = s.seatNumber;
+        const row = s.row || seatId.charAt(0);
+        const number = parseInt(seatId.replace(/^[A-Za-z]+/, "")) || 1;
         keys.push(`show:${showId}:seat:${seatId}`);
-        seatMap.push({ seatId, row, number: i });
+        seatMap.push({
+          seatId,
+          row,
+          number,
+          category: s.category || "Standard",
+        });
+      }
+    } else {
+      const rows = ["A", "B", "C", "D", "E", "F"];
+      for (let row of rows) {
+        for (let i = 1; i <= 10; i++) {
+          const seatId = `${row}${i}`;
+          keys.push(`show:${showId}:seat:${seatId}`);
+          seatMap.push({
+            seatId,
+            row,
+            number: i,
+            category: row === "A" ? "Premium" : "Standard",
+          });
+        }
       }
     }
 
-    const lockValues = await redisClient.mGet(keys);
+    let lockValues = [];
+    try {
+      if (keys.length > 0 && redisClient.isOpen) {
+        lockValues = await redisClient.mGet(keys);
+      }
+    } catch (redisErr) {
+      console.log("REDIS MGET ERROR (falling back):", redisErr.message);
+      lockValues = new Array(keys.length).fill(null);
+    }
 
     const seats = seatMap.map((s, i) => {
-      const lockOwner = lockValues[i];
+      const lockOwner = lockValues ? lockValues[i] : null;
 
       const isBooked = (show.bookedSeats || []).some((b) =>
         typeof b === "string" ? b === s.seatId : b?.seatNumber === s.seatId
       );
 
+      let seatStatus = "AVAILABLE";
       if (isBooked) {
-        status = "BOOKED";
+        seatStatus = "BOOKED";
       } else if (lockOwner) {
         if (userId && String(lockOwner) === userId) {
-          status = "MY_LOCKED";
+          seatStatus = "MY_LOCKED";
         } else {
-          status = "LOCKED";
+          seatStatus = "LOCKED";
         }
       }
+
+      const basePrice = show.basePrice || 200;
+      const seatPrice = s.category === "Premium" ? basePrice + 50 : basePrice;
 
       return {
         id: s.seatId,
         row: s.row,
         number: s.number,
-        status,
+        category: s.category,
+        price: seatPrice,
+        status: seatStatus,
       };
     });
 
@@ -349,8 +438,10 @@ exports.confirmBooking = async (req, res) => {
     }
 
     // 🔥 conflict check
-    const conflict = booking.seats.some(seat =>
-      show.bookedSeats.includes(seat)
+    const conflict = booking.seats.some((seat) =>
+      (show.bookedSeats || []).some((b) =>
+        typeof b === "string" ? b === seat : b?.seatNumber === seat
+      )
     );
 
     if (conflict) {
@@ -360,14 +451,42 @@ exports.confirmBooking = async (req, res) => {
       });
     }
 
-    // 🔥 book seats
-    show.bookedSeats = [
-      ...new Set([...show.bookedSeats, ...booking.seats]),
-    ];
+    // 🔥 book seats (matching Show schema: array of { seatNumber, userId, bookedAt })
+    const existingSeatNumbers = new Set(
+      (show.bookedSeats || []).map((b) =>
+        typeof b === "string" ? b : b?.seatNumber
+      )
+    );
+
+    booking.seats.forEach((seatNumber) => {
+      if (!existingSeatNumbers.has(seatNumber)) {
+        show.bookedSeats.push({
+          seatNumber,
+          userId: booking.user,
+          bookedAt: new Date(),
+        });
+      }
+    });
     await show.save();
 
     // 🔓 release locks
     await releaseSeats(booking.show, booking.seats);
+
+    // 🎟️ GENERATE TICKET ENTRY QR
+    try {
+      const qrToken = jwt.sign(
+        {
+          bookingId: booking._id,
+          showId: booking.show,
+          seats: booking.seats,
+        },
+        process.env.QR_SECRET || "supersecretkey123",
+        { expiresIn: "24h" }
+      );
+      booking.qrCode = await QRCode.toDataURL(qrToken, { width: 300, margin: 2 });
+    } catch (qrErr) {
+      console.log("QR GENERATION ERROR:", qrErr);
+    }
 
     booking.bookingStatus = "Confirmed";
     booking.paymentStatus = "Success";
@@ -492,9 +611,42 @@ exports.getBookingById = async (req, res) => {
       booking.bookingStatus = "Cancelled";
     }
 
+    // 🎟️ ENSURE TICKET ENTRY QR EXISTS IF CONFIRMED
+    if (booking.bookingStatus === "Confirmed" && !booking.qrCode) {
+      try {
+        const qrToken = jwt.sign(
+          {
+            bookingId: booking._id,
+            showId,
+            seats: booking.seats,
+          },
+          process.env.QR_SECRET || "supersecretkey123",
+          { expiresIn: "24h" }
+        );
+        booking.qrCode = await QRCode.toDataURL(qrToken, { width: 300, margin: 2 });
+        await Booking.updateOne({ _id: booking._id }, { qrCode: booking.qrCode });
+      } catch (qrErr) {
+        console.log("QR GENERATION ERROR IN GET BOOKING:", qrErr.message);
+      }
+    }
+
+    // 📱 GENERATE DYNAMIC UPI PAYMENT QR CODE FOR CHECKOUT
+    let paymentQr = null;
+    if (booking.bookingStatus === "Reserved") {
+      const fee = Math.round((booking.totalAmount || 0) * 0.2);
+      const grandTotal = (booking.totalAmount || 0) + fee;
+      const upiString = `upi://pay?pa=eventify@razorpay&pn=Eventify%20Entertainment&am=${grandTotal}&tr=${booking.bookingId || booking._id}&tn=Movie%20Tickets%20${(booking.seats || []).join(",")}&cu=INR`;
+      try {
+        paymentQr = await QRCode.toDataURL(upiString, { width: 280, margin: 2 });
+      } catch (qrErr) {
+        console.log("PAYMENT QR GENERATION ERROR:", qrErr.message);
+      }
+    }
+
     return res.status(200).json({
       success: true,
       booking,
+      paymentQr,
       serverTime: new Date(), // ✅ timer sync
     });
 

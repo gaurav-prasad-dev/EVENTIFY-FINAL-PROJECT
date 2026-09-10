@@ -43,20 +43,34 @@ import Analytics from "./pages/admin/Analytics";
 import MyShows from "./pages/organizer/MyShows"
 import Bookings from "./pages/organizer/Booking"
 import Venue from "./pages/organizer/Venue"
+import MyVenues from "./pages/organizer/MyVenues"
 import MyBookings from "./pages/MyBookings"
 import AdminContent from "./pages/admin/Content"
 // =========================
 // PROTECTED ROUTE
 // =========================
-const ProtectedRoute = ({ children, role }) => {
+// PROTECTED ROUTE
+// =========================
+const ProtectedRoute = ({ children, role, roles }) => {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
 
   if (!isAuthenticated) {
-    return <div className="p-10">Please login first</div>;
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center p-10 text-gray-700">
+        <h2 className="text-xl font-semibold mb-2">Login Required</h2>
+        <p className="text-sm text-gray-500">Please sign in to access this page.</p>
+      </div>
+    );
   }
 
-  if (role && user?.role !== role) {
-    return <div className="p-10">Unauthorized</div>;
+  const allowedRoles = roles || (role ? [role] : null);
+  if (allowedRoles && !allowedRoles.includes(user?.role)) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center p-10 text-red-600">
+        <h2 className="text-xl font-semibold mb-2">Unauthorized Access</h2>
+        <p className="text-sm text-gray-500">You do not have permission to view this section.</p>
+      </div>
+    );
   }
 
   return children;
@@ -84,7 +98,11 @@ function App() {
       <Routes location={state?.background || location}>
         
         {/* ================= PUBLIC ROUTES ================= */}
-        <Route path="/my-bookings" element={<MyBookings />} />
+        <Route path="/my-bookings" element={
+          <ProtectedRoute>
+            <MyBookings />
+          </ProtectedRoute>
+        } />
         <Route path="/" element={<Home />} />
         <Route path="/movies" element={<Movie />} />
         <Route path="/movies/:contentId/:city" element={<MovieDetails />} />
@@ -95,12 +113,6 @@ function App() {
         <Route path="/payment-failed/:bookingId" element={<PaymentFailed />} />
 
         {/* ================= ORGANIZER ================= */}
-        <Route path="organizer/shows/create" element={<CreateShow />} />
-  <Route path="organizer/shows" element={<MyShows />} />
- <Route path="organizer/bookings/recent" element={<Bookings />} />
- <Route path="organizer/bookings/recent" element={<Bookings />} />
- <Route path="/organizer/venues/create" element={<Venue />} />
-
         <Route
           path="/organizer"
           element={
@@ -109,15 +121,71 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/organizer/shows/create"
+          element={
+            <ProtectedRoute role="organizer">
+              <CreateShow />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizer/create-show"
+          element={
+            <ProtectedRoute role="organizer">
+              <CreateShow />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizer/shows"
+          element={
+            <ProtectedRoute role="organizer">
+              <MyShows />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizer/bookings/recent"
+          element={
+            <ProtectedRoute role="organizer">
+              <Bookings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizer/bookings"
+          element={
+            <ProtectedRoute role="organizer">
+              <Bookings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizer/venues/create"
+          element={
+            <ProtectedRoute role="organizer">
+              <Venue />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizer/venues"
+          element={
+            <ProtectedRoute role="organizer">
+              <MyVenues />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
-  path="/admin/content"
-  element={
-    <ProtectedRoute roles={["admin"]}>
-      <AdminContent />
-    </ProtectedRoute>
-  }
-/>
+          path="/admin/content"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <AdminContent />
+            </ProtectedRoute>
+          }
+        />
 
         {/* ================= ADMIN ================= */}
         <Route

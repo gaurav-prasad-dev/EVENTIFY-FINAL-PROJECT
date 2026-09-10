@@ -26,9 +26,22 @@ function Movie() {
 
   if (loading && !movies) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-lg animate-pulse text-gray-600">
-          Loading movies...
+      <div className="bg-gray-50 min-h-screen">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-10 space-y-10">
+          <div className="h-10 w-64 bg-gray-200 rounded-lg animate-pulse" />
+          {[1, 2].map((i) => (
+            <div key={i} className="space-y-4">
+              <div className="h-6 w-48 bg-gray-200 rounded-lg animate-pulse" />
+              <div className="flex gap-6 overflow-hidden">
+                {[1, 2, 3, 4, 5].map((card) => (
+                  <div
+                    key={card}
+                    className="min-w-[210px] h-[320px] bg-gray-200 rounded-2xl animate-pulse"
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -36,21 +49,18 @@ function Movie() {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      {/* Spacing for fixed navbar */}
-      <div className="h-[70px]" />
-
-      <div className="max-w-[1400px] mx-auto">
-        <div className="px-6 pt-6 pb-2">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-            Explore Movies
+      <div className="max-w-[1400px] mx-auto pt-6 pb-12">
+        <div className="px-4 sm:px-6 pb-4">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+            Explore Movies in Catalog
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Browse the latest releases, popular hits, and upcoming movies in your city.
+            Browse movies curated and scheduled by cinema organizers with live seat availability.
           </p>
         </div>
 
         {/* MOVIES SECTIONS */}
-        <div className="space-y-10">
+        <div className="space-y-6">
           <MovieRow
             title="🔥 Now Playing in Cinemas"
             movies={movies?.nowPlaying || []}

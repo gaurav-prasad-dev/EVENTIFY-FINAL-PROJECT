@@ -44,3 +44,14 @@ export const logoutUser = async () => {
     throw error;
   }
 };
+
+// 👤 GET CURRENT USER PROFILE
+export const getMeApi = async () => {
+  try {
+    const res = await apiClient.get("/auth/me");
+    return res.data;
+  } catch (error) {
+    console.log("GET ME ERROR:", error);
+    throw error;
+  }
+};

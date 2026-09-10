@@ -34,6 +34,20 @@ export const lockSeats = async (showId, seats) => {
   }
 };
 
+// 🔓 UNLOCK SEATS
+export const unlockSeats = async (showId, seats) => {
+  try {
+    const res = await apiClient.post("/bookings/unlock-seats", {
+      showId,
+      seats,
+    });
+    return res.data;
+  } catch (error) {
+    console.log("UNLOCK ERROR:", error);
+    return null;
+  }
+};
+
 // 🧾 CREATE BOOKING
 export const createBooking = async (showId, seats) => {
   try {
@@ -68,6 +82,17 @@ export const getMyBookings = async () => {
     return res.data.bookings;
   } catch (error) {
     console.log("GET MY BOOKINGS ERROR:", error);
+    throw error;
+  }
+};
+
+// 🎟️ CONFIRM BOOKING (DIRECT / TEST / UPI)
+export const confirmBooking = async (bookingId) => {
+  try {
+    const res = await apiClient.post("/bookings/confirm", { bookingId });
+    return res.data;
+  } catch (error) {
+    console.log("CONFIRM BOOKING ERROR:", error);
     throw error;
   }
 };

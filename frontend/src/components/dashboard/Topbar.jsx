@@ -1,33 +1,75 @@
 import { useDispatch, useSelector } from "react-redux";
+import { useLocation, NavLink } from "react-router-dom";
+import { logout } from "../../Features/auth/authSlice";
+import { FiLogOut, FiExternalLink } from "react-icons/fi";
 
-import { logout } from "../../Features/auth/authSlice"
 const Topbar = () => {
   const dispatch = useDispatch();
+  const location = useLocation();
   const { user } = useSelector((state) => state.auth);
+
+  const getPageTitle = () => {
+    const path = location.pathname;
+    if (path.includes("/admin/content")) return "Content & TMDB Management";
+    if (path.includes("/admin/shows")) return "Show Schedule Management";
+    if (path.includes("/admin/venues")) return "Venue Approvals";
+    if (path.includes("/admin/organizers")) return "Organizer Applications";
+    if (path.includes("/admin/users")) return "User Management";
+    if (path.includes("/admin/cities")) return "City Management";
+    if (path.includes("/admin/transactions")) return "Transactions & Revenue";
+    if (path.includes("/admin/analytics")) return "Platform Analytics";
+    if (path.includes("/organizer/shows/create")) return "Schedule New Show";
+    if (path.includes("/organizer/shows")) return "My Shows & Schedules";
+    if (path.includes("/organizer/venues")) return "Venue Registration";
+    if (path.includes("/organizer/bookings")) return "Booking Records";
+    if (path.startsWith("/organizer")) return "Organizer Control Center";
+    return "Admin Control Center";
+  };
 
   const handleLogout = () => {
     dispatch(logout());
   };
 
   return (
-    <div className="bg-white shadow-sm px-6 py-3 flex justify-between items-center">
-      <h1 className="text-lg font-semibold text-gray-700">
-        Dashboard
-      </h1>
+    <header className="bg-white border-b border-gray-200 px-6 py-3 flex justify-between items-center z-10 shrink-0 shadow-xs">
+      <div>
+        <h1 className="text-base sm:text-lg font-bold text-gray-800 tracking-tight">
+          {getPageTitle()}
+        </h1>
+      </div>
 
-      <div className="flex items-center gap-4">
-        <span className="text-sm text-gray-600">
-          Hi, {user?.name || "User"}
-        </span>
+      <div className="flex items-center gap-3">
+        <NavLink
+          to="/"
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition border border-gray-200"
+        >
+          <FiExternalLink className="text-xs" />
+          Storefront
+        </NavLink>
+
+        <div className="h-4 w-[1px] bg-gray-200 hidden sm:block" />
+
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center">
+            {(user?.profile?.fullName || user?.name || user?.email || "U")
+              .charAt(0)
+              .toUpperCase()}
+          </div>
+          <span className="text-xs font-medium text-gray-700 hidden md:block">
+            {user?.profile?.fullName || user?.name || "User"}
+          </span>
+        </div>
 
         <button
           onClick={handleLogout}
-          className="bg-purple-600 text-white px-3 py-1 rounded-md text-sm hover:bg-purple-700"
+          title="Sign out"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-semibold transition"
         >
-          Logout
+          <FiLogOut className="text-xs" />
+          <span className="hidden sm:inline">Logout</span>
         </button>
       </div>
-    </div>
+    </header>
   );
 };
 

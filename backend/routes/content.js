@@ -14,7 +14,7 @@ const {
   getContentList
 } = require("../controllers/contentController");
 
-const { auth, isAdmin } = require("../middlewares/auth");
+const { auth, isAdmin, isOrganizer } = require("../middlewares/auth");
 
 // ======================================================
 // 🌐 PUBLIC ROUTES
@@ -32,22 +32,22 @@ router.get("/search/all", searchContent);
 router.get("/:id", getContentById);
 
 // ======================================================
-// 🔐 ADMIN ONLY ROUTES
+// 🔐 ORGANIZER & ADMIN ROUTES
 // ======================================================
 
-// CREATE CONTENT
+// CREATE CONTENT (ADMIN / ORGANIZER)
 router.post(
   "/create",
   auth,
-  isAdmin,
+  isOrganizer,
   createContent
 );
 
-// CREATE CONTENT FROM TMDB
+// CREATE CONTENT FROM TMDB (ADMIN / ORGANIZER)
 router.post(
   "/tmdb",
   auth,
-  isAdmin,
+  isOrganizer,
   createContentFromTMDB
 );
 
