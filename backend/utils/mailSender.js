@@ -80,10 +80,7 @@ const mailSender = async (email, subject, body) => {
       return info;
     } catch (smtpErr) {
       console.error("❌ Brevo SMTP Error:", smtpErr.message);
-      if (isProduction) {
-        throw new Error(`Brevo SMTP Error: ${smtpErr.message}`);
-      }
-      console.warn("⚠️ Falling back to Gmail SMTP...");
+      console.warn("⚠️ Falling back to next mailer method...");
     }
   }
 
@@ -118,14 +115,11 @@ const mailSender = async (email, subject, body) => {
       const errMsg =
         brevoErr.response?.data?.message || brevoErr.message || "Brevo API error";
       console.error("❌ Brevo API Error:", errMsg);
-      if (isProduction) {
-        throw new Error(`Brevo API Error: ${errMsg}`);
-      }
       console.warn("⚠️ Falling back to Gmail SMTP...");
     }
   }
 
-  // 2️⃣ Fallback for local development: Gmail Nodemailer
+  // 2️⃣ Fallback: Gmail Nodemailer
   try {
     const transporter = getGmailTransporter();
 
