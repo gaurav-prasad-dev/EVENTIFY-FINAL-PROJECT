@@ -62,7 +62,8 @@ function LoginModal({ isOpen, onClose }) {
       setTimer(30);
     } catch (err) {
       console.log(err);
-      alert("Failed to send OTP");
+      const serverMsg = err.response?.data?.message || "Failed to send OTP";
+      alert(serverMsg);
     } finally {
       setLoading(false);
     }
