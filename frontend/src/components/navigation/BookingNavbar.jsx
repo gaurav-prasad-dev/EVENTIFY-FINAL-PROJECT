@@ -95,24 +95,24 @@ const BookingNavbar = ({ user, setOpen, setOpenLogin, movie, show, mode }) => {
         >
           <img
             src={logo}
-            className="w-[120px] sm:w-[138px] h-auto object-contain transition-opacity duration-200 group-hover:opacity-90"
+            className="w-[105px] sm:w-[138px] h-auto object-contain transition-opacity duration-200 group-hover:opacity-90"
             alt="Eventify"
           />
         </NavLink>
 
         {/* CENTER */}
-        <div className="flex flex-col items-center text-center max-w-[50%] sm:max-w-[60%]">
+        <div className="flex flex-col items-center text-center max-w-[46%] sm:max-w-[60%]">
           {mode === "review" ? (
             <div className="flex items-center gap-1.5 sm:gap-2">
               <IoShieldCheckmarkOutline className="text-purple-600 text-lg sm:text-xl shrink-0" />
-              <h2 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">
+              <h2 className="text-sm sm:text-lg font-bold text-gray-900 tracking-tight">
                 Review your booking
               </h2>
             </div>
           ) : (
             <>
               {/* 🎬 MOVIE TITLE */}
-              <h2 className="text-sm sm:text-base font-bold text-gray-900 truncate max-w-[190px] sm:max-w-[360px] leading-tight">
+              <h2 className="text-xs sm:text-base font-bold text-gray-900 truncate max-w-[140px] sm:max-w-[360px] leading-tight">
                 {movieData?.title || "Loading show..."}
               </h2>
 

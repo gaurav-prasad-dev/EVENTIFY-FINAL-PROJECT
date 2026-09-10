@@ -12,9 +12,10 @@ import {
   FiExternalLink,
   FiShield,
   FiBriefcase,
+  FiX,
 } from "react-icons/fi";
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen, onClose }) => {
   const { user } = useSelector((state) => state.auth);
 
   const baseClass =
@@ -29,12 +30,16 @@ const Sidebar = () => {
   const sectionTitle =
     "text-[11px] font-bold uppercase tracking-wider text-gray-400 mt-6 mb-2 px-3";
 
-  return (
-    <aside className="w-64 bg-white border-r border-gray-200 h-screen p-4 flex flex-col shrink-0 shadow-xs z-20">
+  const renderContent = (isMobile = false) => (
+    <>
       {/* LOGO & BRAND */}
       <div className="px-2 pt-2 pb-4 border-b border-gray-100 flex items-center justify-between">
         <div>
-          <NavLink to="/" className="flex items-center gap-2">
+          <NavLink
+            to="/"
+            onClick={() => isMobile && onClose?.()}
+            className="flex items-center gap-2"
+          >
             <span className="text-2xl font-extrabold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
               Eventify
             </span>
@@ -51,6 +56,17 @@ const Sidebar = () => {
             )}
           </div>
         </div>
+
+        {isMobile && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition cursor-pointer"
+            title="Close menu"
+          >
+            <FiX className="text-xl" />
+          </button>
+        )}
       </div>
 
       {/* NAVIGATION ITEMS */}
@@ -208,6 +224,7 @@ const Sidebar = () => {
       <div className="pt-3 border-t border-gray-100 space-y-2">
         <NavLink
           to="/"
+          onClick={() => isMobile && onClose?.()}
           className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-100 transition"
         >
           <span className="flex items-center gap-2">
@@ -233,7 +250,32 @@ const Sidebar = () => {
           </div>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* DESKTOP STATIC ASIDE */}
+      <aside className="w-64 bg-white border-r border-gray-200 h-screen p-4 flex-col shrink-0 shadow-xs z-20 hidden lg:flex">
+        {renderContent(false)}
+      </aside>
+
+      {/* MOBILE SLIDE-OVER DRAWER */}
+      {isOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          {/* BACKDROP OVERLAY */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+            onClick={onClose}
+          />
+
+          {/* DRAWER PANEL */}
+          <aside className="relative w-64 max-w-[80vw] bg-white h-full p-4 flex flex-col shadow-2xl z-10 animate-in slide-in-from-left duration-200">
+            {renderContent(true)}
+          </aside>
+        </div>
+      )}
+    </>
   );
 };
 

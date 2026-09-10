@@ -1,9 +1,9 @@
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, NavLink } from "react-router-dom";
 import { logout } from "../../Features/auth/authSlice";
-import { FiLogOut, FiExternalLink } from "react-icons/fi";
+import { FiLogOut, FiExternalLink, FiMenu } from "react-icons/fi";
 
-const Topbar = () => {
+const Topbar = ({ onOpenSidebar }) => {
   const dispatch = useDispatch();
   const location = useLocation();
   const { user } = useSelector((state) => state.auth);
@@ -31,9 +31,17 @@ const Topbar = () => {
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-3 flex justify-between items-center z-10 shrink-0 shadow-xs">
-      <div>
-        <h1 className="text-base sm:text-lg font-bold text-gray-800 tracking-tight">
+    <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 flex justify-between items-center z-10 shrink-0 shadow-xs">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <button
+          type="button"
+          onClick={onOpenSidebar}
+          className="lg:hidden p-1.5 -ml-1.5 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition cursor-pointer"
+          title="Open Menu"
+        >
+          <FiMenu className="text-xl" />
+        </button>
+        <h1 className="text-sm sm:text-lg font-bold text-gray-800 tracking-tight truncate">
           {getPageTitle()}
         </h1>
       </div>

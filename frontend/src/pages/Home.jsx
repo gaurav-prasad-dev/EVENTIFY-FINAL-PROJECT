@@ -112,7 +112,7 @@ function Home() {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen text-gray-900">
+    <div className="bg-gray-50 min-h-screen text-gray-900 pb-16 sm:pb-0">
       {/* ==================================================== */}
       {/* 🌟 HERO SPOTLIGHT BANNER */}
       {/* ==================================================== */}

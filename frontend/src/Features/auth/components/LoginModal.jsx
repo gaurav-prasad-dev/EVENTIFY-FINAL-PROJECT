@@ -145,17 +145,18 @@ if (res.user.role === "admin") {
 
   return (
     <div
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-[1000]"
+      className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[1000] p-4 transition-opacity"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="bg-white w-[380px] rounded-2xl p-6 relative"
+        className="bg-white w-full max-w-[380px] rounded-3xl p-6 relative shadow-2xl border border-gray-100 mx-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ❌ CLOSE */}
         <button
           onClick={onClose}
-          className="absolute top-3 right-4 text-gray-500"
+          className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition cursor-pointer"
+          title="Close modal"
         >
           ✕
         </button>
@@ -273,7 +274,7 @@ if (response.user.role === "admin") {
             </p>
 
             {/* OTP BOXES */}
-            <div className="flex justify-between mb-4">
+            <div className="flex justify-between gap-1.5 sm:gap-2 mb-5">
               {otp.map((digit, index) => (
                 <input
                   key={index}
@@ -283,7 +284,7 @@ if (response.user.role === "admin") {
                   ref={(el) => (inputRefs.current[index] = el)}
                   onChange={(e) => handleOtpChange(e, index)}
                   onKeyDown={(e) => handleKeyDown(e, index)}
-                  className="w-10 h-10 border text-center rounded-lg text-lg"
+                  className="w-10 h-12 sm:w-11 sm:h-12 border border-gray-200 focus:border-purple-600 focus:ring-2 focus:ring-purple-100 text-center rounded-xl text-lg font-bold outline-none transition"
                 />
               ))}
             </div>

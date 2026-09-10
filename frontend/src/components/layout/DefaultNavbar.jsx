@@ -15,7 +15,7 @@ const DefaultNavbar = ({ user, setOpen, setOpenLogin }) => {
       <div className="max-w-[1440px] mx-auto min-h-[64px] sm:h-[68px] px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3 sm:gap-6">
 
         {/* LEFT: Logo + Location + Home & Movies Links */}
-        <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           <NavLink
             to="/"
             className="shrink-0 flex items-center group transition-transform duration-200 hover:scale-[1.03] active:scale-[0.98]"
@@ -23,7 +23,7 @@ const DefaultNavbar = ({ user, setOpen, setOpenLogin }) => {
             <img
               src={logo}
               alt="Eventify"
-              className="w-[120px] sm:w-[138px] h-auto object-contain transition-opacity duration-200 group-hover:opacity-90"
+              className="w-[105px] sm:w-[138px] h-auto object-contain transition-opacity duration-200 group-hover:opacity-90"
             />
           </NavLink>
 
@@ -31,7 +31,7 @@ const DefaultNavbar = ({ user, setOpen, setOpenLogin }) => {
 
           <div className="h-6 w-px bg-gray-200 hidden md:block mx-1" />
 
-          <div className="flex gap-1 sm:gap-1.5 items-center">
+          <div className="hidden sm:flex gap-1 sm:gap-1.5 items-center">
             {navItems.map((item) => (
               <NavLink
                 key={item.path}

@@ -7,6 +7,7 @@ import LoginModal from "../../Features/auth/components/LoginModal";
 import Sidebar from "./Sidebar";
 import DefaultNavbar from "./DefaultNavbar";
 import BookingNavbar from "../navigation/BookingNavbar";
+import MobileBottomNav from "./MobileBottomNav";
 import { setOpenLogin } from "../../Features/auth/authSlice";
 
 function Navbar() {
@@ -50,6 +51,9 @@ const isBookingPage = isSeatPage || isCheckoutPage;
       />
 
       <Sidebar open={open} setOpen={setOpen} />
+
+      {/* 📱 MOBILE BOTTOM NAVIGATION */}
+      <MobileBottomNav setOpenSidebar={setOpen} />
     </>
   );
 }
