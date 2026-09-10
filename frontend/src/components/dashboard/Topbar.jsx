@@ -1,10 +1,13 @@
 import { useDispatch, useSelector } from "react-redux";
-import { useLocation, NavLink } from "react-router-dom";
+import { useLocation, NavLink, useNavigate } from "react-router-dom";
 import { logout } from "../../Features/auth/authSlice";
+import { logoutUser } from "../../Features/auth/authApi";
+import { persistor } from "../../app/store";
 import { FiLogOut, FiExternalLink, FiMenu } from "react-icons/fi";
 
 const Topbar = ({ onOpenSidebar }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const location = useLocation();
   const { user } = useSelector((state) => state.auth);
 
@@ -26,8 +29,17 @@ const Topbar = ({ onOpenSidebar }) => {
     return "Admin Control Center";
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutUser?.();
+    } catch (err) {
+      console.log("Server logout failed, clearing local state:", err?.message);
+    }
+    try {
+      await persistor?.purge();
+    } catch {}
     dispatch(logout());
+    navigate("/");
   };
 
   return (

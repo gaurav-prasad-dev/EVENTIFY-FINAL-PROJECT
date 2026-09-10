@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
 import Navbar from "./components/layout/Navbar";
@@ -46,31 +46,21 @@ import Venue from "./pages/organizer/Venue"
 import MyVenues from "./pages/organizer/MyVenues"
 import MyBookings from "./pages/MyBookings"
 import AdminContent from "./pages/admin/Content"
-// =========================
-// PROTECTED ROUTE
+
 // =========================
 // PROTECTED ROUTE
 // =========================
 const ProtectedRoute = ({ children, role, roles }) => {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
 
+  // Automatically take user to home page if logged out or session ends
   if (!isAuthenticated) {
-    return (
-      <div className="min-h-[50vh] flex flex-col items-center justify-center p-10 text-gray-700">
-        <h2 className="text-xl font-semibold mb-2">Login Required</h2>
-        <p className="text-sm text-gray-500">Please sign in to access this page.</p>
-      </div>
-    );
+    return <Navigate to="/" replace />;
   }
 
   const allowedRoles = roles || (role ? [role] : null);
   if (allowedRoles && !allowedRoles.includes(user?.role)) {
-    return (
-      <div className="min-h-[50vh] flex flex-col items-center justify-center p-10 text-red-600">
-        <h2 className="text-xl font-semibold mb-2">Unauthorized Access</h2>
-        <p className="text-sm text-gray-500">You do not have permission to view this section.</p>
-      </div>
-    );
+    return <Navigate to="/" replace />;
   }
 
   return children;

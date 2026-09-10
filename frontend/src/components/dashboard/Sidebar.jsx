@@ -1,5 +1,8 @@
-import { NavLink } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import { logout } from "../../Features/auth/authSlice";
+import { logoutUser } from "../../Features/auth/authApi";
+import { persistor } from "../../app/store";
 import {
   FiHome,
   FiUsers,
@@ -13,10 +16,25 @@ import {
   FiShield,
   FiBriefcase,
   FiX,
+  FiLogOut,
 } from "react-icons/fi";
 
 const Sidebar = ({ isOpen, onClose }) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser?.();
+    } catch {}
+    try {
+      await persistor?.purge();
+    } catch {}
+    dispatch(logout());
+    onClose?.();
+    navigate("/");
+  };
 
   const baseClass =
     "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200";
@@ -234,20 +252,31 @@ const Sidebar = ({ isOpen, onClose }) => {
           <span className="text-[10px] text-gray-400">Home →</span>
         </NavLink>
 
-        <div className="px-3 py-2 bg-gray-50 rounded-xl flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
-            {(user?.profile?.fullName || user?.name || user?.email || "U")
-              .charAt(0)
-              .toUpperCase()}
+        <div className="px-3 py-2 bg-gray-50 rounded-xl flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="w-8 h-8 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+              {(user?.profile?.fullName || user?.name || user?.email || "U")
+                .charAt(0)
+                .toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold text-gray-800 truncate">
+                {user?.profile?.fullName || user?.name || "Logged In"}
+              </p>
+              <p className="text-[10px] text-gray-400 truncate">
+                {user?.email}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-gray-800 truncate">
-              {user?.profile?.fullName || user?.name || "Logged In"}
-            </p>
-            <p className="text-[10px] text-gray-400 truncate">
-              {user?.email}
-            </p>
-          </div>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            title="Sign out to Home"
+            className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer shrink-0"
+          >
+            <FiLogOut className="text-sm" />
+          </button>
         </div>
       </div>
     </>
