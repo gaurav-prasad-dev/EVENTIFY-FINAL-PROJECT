@@ -197,7 +197,7 @@
   | **Selected** | `bg-purple-600 text-white scale-110 border-transparent shadow-sm` | `cursor-pointer` |
   | **Locked** (held) | `bg-yellow-300 text-yellow-800 border-yellow-400` | `cursor-not-allowed opacity-70` |
   | **Booked** (sold) | `bg-gray-300 text-gray-400 border-gray-300` | `cursor-not-allowed opacity-70` |
-* **Seat Legend:** `flex justify-center gap-8 mt-10 text-sm` (`⬜ Available` | `🟡 Locked` | `⬛ Booked` | `🟪 Selected`)
+* **Seat Legend:** `flex flex-wrap items-center justify-center gap-3 sm:gap-6 mt-10 text-xs sm:text-sm` (Pill badges with matching mini seat swatches: Available `bg-white border-gray-300`, Selected `bg-purple-600`, Locked `bg-yellow-300 border-yellow-400`, Booked `bg-gray-300 border-gray-300`)
 
 #### 4. Fixed Bottom Action Bar (`BottomBar.jsx`)
 * **Bar:** `fixed bottom-0 left-0 w-full bg-white shadow-lg px-8 py-4 flex justify-between items-center border-t z-40`

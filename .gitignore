@@ -10,6 +10,7 @@ node_modules/
 backend/.env*
 backend/*-GAURAVPC.env
 frontend/.env*
+!**/.env.example
 
 # Production build
 dist/

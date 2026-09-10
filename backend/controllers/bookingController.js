@@ -14,6 +14,7 @@ const { lockSeatsLua } = require("../utils/redisScripts");
 // 🔥 HELPER: RELEASE SEATS
 // ==============================
 const releaseSeats = async (showId, seats) => {
+  if (!redisClient.isOpen || !Array.isArray(seats) || seats.length === 0) return;
   const pipeline = redisClient.multi();
 
   for (const seat of seats) {
@@ -51,6 +52,13 @@ exports.lockSeats = async (req, res) => {
     // ==============================
     // 🔥 LUA EXECUTION (FIXED SYNTAX)
     // ==============================
+    if (!redisClient.isOpen) {
+      return res.status(503).json({
+        success: false,
+        message: "Seat reservation service is temporarily unavailable. Please try again.",
+      });
+    }
+
     const result = await redisClient.eval(lockSeatsLua, {
       keys,
       arguments: [userId, String(ttl)],
@@ -114,11 +122,13 @@ exports.unlockSeats = async (req, res) => {
     const userLockKey = `user:${userId}:locks:${showId}`;
     const keys = seats.map((seat) => `show:${showId}:seat:${seat}`);
 
-    for (let i = 0; i < keys.length; i++) {
-      const owner = await redisClient.get(keys[i]);
-      if (owner === userId) {
-        await redisClient.del(keys[i]);
-        await redisClient.sRem(userLockKey, seats[i]);
+    if (redisClient.isOpen) {
+      for (let i = 0; i < keys.length; i++) {
+        const owner = await redisClient.get(keys[i]);
+        if (owner === userId) {
+          await redisClient.del(keys[i]);
+          await redisClient.sRem(userLockKey, seats[i]);
+        }
       }
     }
 
@@ -232,6 +242,13 @@ exports.createBooking = async (req, res) => {
     }
 
     // 🔥 SAFE LOCK VALIDATION
+    if (!redisClient.isOpen) {
+      return res.status(503).json({
+        success: false,
+        message: "Seat reservation service is temporarily unavailable. Please try again.",
+      });
+    }
+
     for (const seat of seats) {
       const key = `show:${showId}:seat:${seat}`;
       const lockOwner = await redisClient.get(key);
@@ -598,11 +615,13 @@ exports.getBookingById = async (req, res) => {
         { bookingStatus: "Cancelled" }
       );
 
-      const keys = booking.seats.map(
+      const keys = (booking.seats || []).map(
         (seat) => `show:${showId}:seat:${seat}`
       );
 
-      await redisClient.del(...keys);
+      if (keys.length > 0 && redisClient.isOpen) {
+        await redisClient.del(...keys);
+      }
 
       global.io.to(showId.toString()).emit("seat_unlocked", {
         seats: booking.seats,

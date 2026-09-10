@@ -63,12 +63,12 @@ const SeatGrid = ({
                     className={`w-10 h-10 flex items-center justify-center rounded-md text-xs border font-medium transition
                     ${
                       seat.status === "BOOKED"
-                        ? "bg-gray-300 text-gray-400"
+                        ? "bg-gray-300 text-gray-400 border-gray-300"
                         : isSelected
-                        ? "bg-purple-600 text-white scale-110 shadow-xs"
+                        ? "bg-purple-600 text-white border-purple-600 scale-110 shadow-xs"
                         : seat.status === "LOCKED"
-                        ? "bg-yellow-300 text-yellow-800"
-                        : "bg-white hover:border-purple-400 text-gray-700"
+                        ? "bg-yellow-300 text-yellow-800 border-yellow-400"
+                        : "bg-white hover:border-purple-400 text-gray-700 border-gray-300"
                     }
                     ${isDisabled ? "cursor-not-allowed opacity-70" : "cursor-pointer"}
                     `}
@@ -82,11 +82,26 @@ const SeatGrid = ({
         ))}
 
         {/* LEGEND */}
-        <div className="flex justify-center gap-8 mt-10 text-sm">
-          <span>⬜ Available</span>
-          <span>🟡 Locked</span>
-          <span>⬛ Booked</span>
-          <span>🟪 Selected</span>
+        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 mt-10 text-xs sm:text-sm">
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 font-medium select-none shadow-xs">
+            <span className="w-4 h-4 rounded-md border border-gray-300 bg-white inline-block"></span>
+            <span>Available</span>
+          </div>
+
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 font-medium select-none shadow-xs">
+            <span className="w-4 h-4 rounded-md bg-purple-600 border border-purple-600 inline-block shadow-xs"></span>
+            <span>Selected</span>
+          </div>
+
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 font-medium select-none shadow-xs">
+            <span className="w-4 h-4 rounded-md bg-yellow-300 border border-yellow-400 inline-block"></span>
+            <span>Locked</span>
+          </div>
+
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 font-medium select-none shadow-xs">
+            <span className="w-4 h-4 rounded-md bg-gray-300 border border-gray-300 inline-block"></span>
+            <span>Booked</span>
+          </div>
         </div>
       </div>
     </div>

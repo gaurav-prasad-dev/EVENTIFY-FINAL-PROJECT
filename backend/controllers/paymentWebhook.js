@@ -347,11 +347,13 @@ exports.verifyPayment = async (req, res) => {
       await booking.save();
 
       // 🔓 release seats
-      const keys = booking.seats.map(
+      const keys = (booking.seats || []).map(
         (seat) => `show:${booking.show}:seat:${seat}`
       );
 
-      await redisClient.del(...keys);
+      if (keys.length > 0 && redisClient.isOpen) {
+        await redisClient.del(...keys);
+      }
 
       global.io.to(booking.show.toString()).emit("seat_unlocked", {
         seats: booking.seats,
@@ -424,10 +426,12 @@ exports.verifyPayment = async (req, res) => {
     );
 
     // 🔓 STEP 5: Remove Redis locks
-    const keys = booking.seats.map(
+    const keys = (booking.seats || []).map(
       (seat) => `show:${booking.show}:seat:${seat}`
     );
-    await redisClient.del(...keys);
+    if (keys.length > 0 && redisClient.isOpen) {
+      await redisClient.del(...keys);
+    }
 
     // 🎟 STEP 6: Generate QR
     const token = jwt.sign(
@@ -494,10 +498,12 @@ exports.markPaymentFailed = async (req, res) => {
     }
 
     // 🔓 release seats from Redis
-    const keys = booking.seats.map(
+    const keys = (booking.seats || []).map(
       (seat) => `show:${booking.show}:seat:${seat}`
     );
-    await redisClient.del(...keys);
+    if (keys.length > 0 && redisClient.isOpen) {
+      await redisClient.del(...keys);
+    }
 
     // ❌ mark failed
     booking.paymentStatus = "Failed";

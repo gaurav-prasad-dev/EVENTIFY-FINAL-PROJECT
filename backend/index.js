@@ -20,9 +20,20 @@ db.connect();
 // ==============================
 // CORS
 // ==============================
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(",").map((url) => url.trim()) : []),
+];
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
     credentials: true,
   })
 );
@@ -58,6 +69,8 @@ global.io = io;
 // ==============================
 const releaseUserSeats = async (userId) => {
   try {
+    if (!redisClient.isOpen) return;
+
     const pattern = `user:${userId}:locks:*`;
 
     const keys = await redisClient.keys(pattern);

@@ -19,12 +19,14 @@ cron.schedule("*/1 * * * *", async () => {
     await Promise.all(
       expiredBookings.map(async (booking) => {
         try {
-          const keys = booking.seats.map(
+          const keys = (booking.seats || []).map(
             (seat) => `show:${booking.show}:seat:${seat}`
           );
 
-          // 🔥 FIX
-          await redisClient.del(...keys);
+          // Release seat locks if Redis is connected
+          if (keys.length > 0 && redisClient.isOpen) {
+            await redisClient.del(...keys);
+          }
 
           // 🔒 ATOMIC UPDATE
           await Booking.updateOne(
@@ -37,9 +39,11 @@ cron.schedule("*/1 * * * *", async () => {
           );
 
           // 🔔 SOCKET
-          global.io.to(booking.show.toString()).emit("seat_unlocked", {
-            seats: booking.seats,
-          });
+          if (global.io) {
+            global.io.to(booking.show.toString()).emit("seat_unlocked", {
+              seats: booking.seats,
+            });
+          }
 
         } catch (err) {
           console.log("Error processing booking:", booking._id, err);
