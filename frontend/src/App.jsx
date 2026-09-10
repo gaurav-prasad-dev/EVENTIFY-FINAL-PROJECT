@@ -13,7 +13,7 @@ import SeatLayout from "./Features/booking/components/SeatLayout";
 import CheckOutTime from "./Features/payment/CheckOutTime";
 import Success from "./Success";
 import TrailerPage from "./pages/TrailerPage";
-import ViewDetailsModal from "./Features/movies/components/ViewDetailsModal";
+import ViewDetailsModal from "./Features/movies/components/viewDetailsModal";
 import PaymentFailed from "./Features/payment/PaymentFailed";
 
 // =========================
