@@ -122,7 +122,7 @@ const BookingNavbar = ({ user, setOpen, setOpenLogin, movie, show, mode }) => {
                   {showData?.screen?.venue?.name || "Theatre"}
                 </span>
                 <span className="text-gray-300">•</span>
-                <span className="shrink-0">{city?.name || "City"}</span>
+                <span className="shrink-0">{(typeof city === "object" ? city?.name : city) || "City"}</span>
               </div>
 
               {/* 📅 DATE + TIME PILL */}

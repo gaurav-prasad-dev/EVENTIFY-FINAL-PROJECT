@@ -154,7 +154,7 @@ const CheckOutTime = () => {
       const order = res.payload;
 
       const razor = new window.Razorpay({
-        key: "rzp_test_RseAcqvzZsYCbZ",
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_RseAcqvzZsYCbZ",
         amount: order.amount,
         currency: "INR",
         order_id: order.id,

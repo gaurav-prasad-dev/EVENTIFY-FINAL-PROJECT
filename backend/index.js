@@ -12,6 +12,9 @@ const redisClient = require("./config/redis");
 
 const app = express();
 
+// Trust reverse proxy (required for secure cookies on Render / Heroku)
+app.set("trust proxy", 1);
+
 // ==============================
 // DB CONNECT
 // ==============================
