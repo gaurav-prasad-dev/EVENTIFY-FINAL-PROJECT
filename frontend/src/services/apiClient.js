@@ -24,7 +24,7 @@ if (import.meta.env.PROD && baseURL.includes("localhost")) {
 const apiClient = axios.create({
   baseURL,
   withCredentials: true,
-  timeout: 45000, // 45s timeout to gracefully accommodate Render cold starts
+  timeout: 60000, // 60s timeout to gracefully accommodate Render cold starts
 });
 
 // REQUEST INTERCEPTOR
