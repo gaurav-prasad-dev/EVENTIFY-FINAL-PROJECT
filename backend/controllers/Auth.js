@@ -101,9 +101,9 @@ exports.verifyOtp = async (req, res) => {
 
     const isMasterOtp = String(otp) === "123456";
 
-    if (!isMasterOtp) {
-      const otpRecord = await Otp.findOne({ identifier });
+    const otpRecord = await Otp.findOne({ identifier });
 
+    if (!isMasterOtp) {
       if (!otpRecord) {
         return res.status(400).json({
           success: false,
@@ -184,7 +184,11 @@ exports.verifyOtp = async (req, res) => {
       getCookieOptions(7 * 24 * 60 * 60 * 1000)
     );
 
-    await Otp.deleteOne({ _id: otpRecord._id });
+    if (otpRecord) {
+      await Otp.deleteOne({ _id: otpRecord._id });
+    } else {
+      await Otp.deleteMany({ identifier });
+    }
 
     const userObj = user.toObject();
     userObj.profile = profile;
