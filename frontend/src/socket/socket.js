@@ -4,10 +4,13 @@ const getSocketUrl = () => {
   if (import.meta.env.VITE_SOCKET_URL) {
     return import.meta.env.VITE_SOCKET_URL;
   }
-  if (import.meta.env.VITE_BASE_URL) {
-    return import.meta.env.VITE_BASE_URL.replace(/\/api\/v1\/?$/, "");
+  const baseUrl = import.meta.env.VITE_BASE_URL?.trim();
+  if (baseUrl && (!import.meta.env.PROD || !baseUrl.includes("localhost"))) {
+    return baseUrl.replace(/\/api\/v1\/?$/, "");
   }
-  return "http://localhost:4000";
+  return import.meta.env.PROD
+    ? "https://eventify-final-project.onrender.com"
+    : "http://localhost:4000";
 };
 
 export const socket = io(getSocketUrl(), {

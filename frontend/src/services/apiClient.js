@@ -2,13 +2,22 @@ import axios from "axios";
 import { store } from "../app/store";
 import { updateAccessToken, logout } from "../Features/auth/authSlice";
 
-const rawBaseURL = import.meta.env.VITE_BASE_URL || "http://localhost:4000/api/v1";
+const defaultBaseURL = import.meta.env.PROD
+  ? "https://eventify-final-project.onrender.com/api/v1"
+  : "http://localhost:4000/api/v1";
+
+const envBaseURL = import.meta.env.VITE_BASE_URL?.trim();
+const rawBaseURL =
+  envBaseURL && (!import.meta.env.PROD || !envBaseURL.includes("localhost"))
+    ? envBaseURL
+    : defaultBaseURL;
+
 // Sanitize baseURL to remove any accidental trailing slash
 const baseURL = rawBaseURL.replace(/\/+$/, "");
 
-if (import.meta.env.PROD && (baseURL.includes("localhost") || !import.meta.env.VITE_BASE_URL)) {
+if (import.meta.env.PROD && baseURL.includes("localhost")) {
   console.warn(
-    "⚠️ Warning: VITE_BASE_URL is pointing to localhost or missing in production. Ensure VITE_BASE_URL is set in Vercel to your live backend (e.g. https://your-backend.onrender.com/api/v1)."
+    "⚠️ Warning: VITE_BASE_URL is pointing to localhost in production. Falling back to live Render backend."
   );
 }
 

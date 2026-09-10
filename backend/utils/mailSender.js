@@ -1,6 +1,21 @@
 const nodemailer = require("nodemailer");
 const axios = require("axios");
 
+let gmailTransporter = null;
+const getGmailTransporter = () => {
+  if (!gmailTransporter) {
+    gmailTransporter = nodemailer.createTransport({
+      service: "gmail",
+      pool: true,
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
+      },
+    });
+  }
+  return gmailTransporter;
+};
+
 const mailSender = async (email, subject, body) => {
   // 1️⃣ Priority: Try Brevo Transactional Email API if configured
   if (
@@ -25,29 +40,30 @@ const mailSender = async (email, subject, body) => {
             "api-key": process.env.BREVO_API_KEY.trim(),
             "Content-Type": "application/json",
           },
-          timeout: 10000,
+          timeout: 5000,
         }
       );
       console.log("Email sent via Brevo API successfully");
       return response.data;
     } catch (brevoErr) {
-      console.warn(
-        "Brevo API error:",
-        brevoErr.response?.data?.message || brevoErr.message,
-        "→ Falling back to Gmail SMTP..."
-      );
+      const errMsg = brevoErr.response?.data?.message || brevoErr.message;
+      if (errMsg.includes("unrecognised IP address")) {
+        console.warn(
+          "⚠️ Brevo Error: IP not whitelisted. Disable 'Authorised IPs' at https://app.brevo.com/security/authorised_ips to allow cloud/local calls. → Falling back to Gmail SMTP..."
+        );
+      } else {
+        console.warn(
+          "Brevo API error:",
+          errMsg,
+          "→ Falling back to Gmail SMTP..."
+        );
+      }
     }
   }
 
   // 2️⃣ Fallback: Gmail Nodemailer
   try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
-      },
-    });
+    const transporter = getGmailTransporter();
 
     const info = await transporter.sendMail({
       from: `"Eventify" <${process.env.MAIL_USER}>`,
