@@ -2,9 +2,20 @@ import axios from "axios";
 import { store } from "../app/store";
 import { updateAccessToken, logout } from "../Features/auth/authSlice";
 
+const rawBaseURL = import.meta.env.VITE_BASE_URL || "http://localhost:4000/api/v1";
+// Sanitize baseURL to remove any accidental trailing slash
+const baseURL = rawBaseURL.replace(/\/+$/, "");
+
+if (import.meta.env.PROD && (baseURL.includes("localhost") || !import.meta.env.VITE_BASE_URL)) {
+  console.warn(
+    "⚠️ Warning: VITE_BASE_URL is pointing to localhost or missing in production. Ensure VITE_BASE_URL is set in Vercel to your live backend (e.g. https://your-backend.onrender.com/api/v1)."
+  );
+}
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_BASE_URL,
+  baseURL,
   withCredentials: true,
+  timeout: 45000, // 45s timeout to gracefully accommodate Render cold starts
 });
 
 // REQUEST INTERCEPTOR
@@ -71,7 +82,7 @@ apiClient.interceptors.response.use(
 
       try {
         const refreshResponse = await axios.post(
-          `${import.meta.env.VITE_BASE_URL}/auth/refresh-token`,
+          `${baseURL}/auth/refresh-token`,
           {},
           { withCredentials: true }
         );
@@ -97,7 +108,13 @@ apiClient.interceptors.response.use(
       }
     }
 
-    console.log("API ERROR:", error.response?.data || error.message);
+    if (!error.response && error.message === "Network Error") {
+      console.error(
+        `🚨 [Axios Network Error] Could not reach backend at "${baseURL}". Verify that:\n1. Your Render backend web service is active (not sleeping or crashed).\n2. VITE_BASE_URL on Vercel is set to https://your-backend.onrender.com/api/v1 (and you triggered a Redeploy on Vercel).\n3. In Google/Browser Developer Tools Network tab, check the failed request status and response headers.`
+      );
+    } else {
+      console.log("API ERROR:", error.response?.data || error.message);
+    }
     return Promise.reject(error);
   }
 );

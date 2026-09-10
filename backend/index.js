@@ -23,34 +23,13 @@ db.connect();
 // ==============================
 // CORS
 // ==============================
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:3000",
-  ...(process.env.CLIENT_URL ? process.env.CLIENT_URL.split(",").map((url) => url.trim()) : []),
-];
-
-const isOriginAllowed = (origin) => {
-  if (!origin) return true;
-  if (allowedOrigins.includes(origin) || allowedOrigins.includes("*")) return true;
-  try {
-    const hostname = new URL(origin).hostname;
-    // Allow all *.vercel.app preview & production domains
-    if (hostname.endsWith(".vercel.app")) return true;
-  } catch {}
-  return true; // Safe fallback to ensure no unexpected CORS blocks
-};
-
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (isOriginAllowed(origin)) {
-        return callback(null, true);
-      }
-      return callback(null, true);
-    },
+    origin: true, // Dynamically reflects request origin (supports Vercel, localhost, and custom domains with credentials)
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+    optionsSuccessStatus: 204,
   })
 );
 
