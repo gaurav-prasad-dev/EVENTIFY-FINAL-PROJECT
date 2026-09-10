@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { getHomeData } from "../Features/movies/movieApi";
@@ -12,6 +12,8 @@ import {
   IoFlashOutline,
   IoQrCodeOutline,
   IoSparklesOutline,
+  IoChevronBackOutline,
+  IoChevronForwardOutline,
 } from "react-icons/io5";
 
 const GENRE_FILTERS = [
@@ -34,6 +36,11 @@ function Home() {
   const [loading, setLoading] = useState(true);
   const [activeGenre, setActiveGenre] = useState("All Movies");
 
+  // 🎠 Auto-scroll state for hero posters
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const touchStartX = useRef(null);
+
   useEffect(() => {
     fetchHome();
   }, []);
@@ -50,7 +57,65 @@ function Home() {
     }
   };
 
-  const heroMovie = movies?.heroMovie || movies?.popular?.[0] || movies?.nowPlaying?.[0];
+  // Top 3-4 slides for the hero auto-scroll banner
+  const heroSlides = useMemo(() => {
+    if (!movies) return [];
+    const list = [];
+    const seenIds = new Set();
+
+    const addMovie = (m) => {
+      if (!m) return;
+      const id = String(m.id || m._id || m.tmdbId || m.title);
+      if (!seenIds.has(id)) {
+        seenIds.add(id);
+        list.push(m);
+      }
+    };
+
+    if (movies.heroMovie) addMovie(movies.heroMovie);
+    (movies.nowPlaying || []).forEach(addMovie);
+    (movies.popular || []).forEach(addMovie);
+    (movies.all || []).forEach(addMovie);
+    (movies.upcoming || []).forEach(addMovie);
+
+    return list.slice(0, 4);
+  }, [movies]);
+
+  // ⏱️ Auto-advance through the 3-4 posters every 4.5 seconds (pauses on hover)
+  useEffect(() => {
+    if (heroSlides.length <= 1 || isHovered) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+    }, 4500);
+
+    return () => clearInterval(interval);
+  }, [heroSlides.length, isHovered]);
+
+  const nextSlide = () => {
+    if (heroSlides.length <= 1) return;
+    setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+  };
+
+  const prevSlide = () => {
+    if (heroSlides.length <= 1) return;
+    setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
+  };
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartX.current - touchEndX;
+    if (diff > 50) {
+      nextSlide();
+    } else if (diff < -50) {
+      prevSlide();
+    }
+    touchStartX.current = null;
+  };
 
   // Filter movies by genre if selected
   const filterByGenre = (list = []) => {
@@ -114,83 +179,147 @@ function Home() {
   return (
     <div className="bg-gray-50 min-h-screen text-gray-900 pb-16 sm:pb-0">
       {/* ==================================================== */}
-      {/* 🌟 HERO SPOTLIGHT BANNER */}
+      {/* 🌟 HERO AUTO-SCROLLING POSTER BANNER (3-4 SHOWS/POSTERS) */}
       {/* ==================================================== */}
-      {heroMovie && (
+      {heroSlides.length > 0 && (
         <section className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-4 sm:pt-6">
-          <div className="relative rounded-3xl overflow-hidden shadow-2xl min-h-[380px] sm:min-h-[460px] flex items-end bg-gray-900">
-            {/* BACKDROP IMAGE */}
-            <img
-              src={heroMovie.backdrop || heroMovie.poster}
-              alt={heroMovie.title}
-              className="absolute inset-0 w-full h-full object-cover object-center scale-105"
-            />
+          <div
+            className="relative rounded-3xl overflow-hidden shadow-2xl min-h-[440px] sm:min-h-[480px] md:min-h-[520px] bg-gray-950 select-none group"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
+            {/* RENDER ALL 3-4 SLIDES WITH SMOOTH OPACITY CROSS-FADE */}
+            {heroSlides.map((slide, index) => {
+              const isActive = index === currentSlide;
 
-            {/* CINEMATIC GRADIENT OVERLAY */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent hidden sm:block" />
+              return (
+                <div
+                  key={slide.id || slide._id || index}
+                  className={`absolute inset-0 transition-opacity duration-700 ease-in-out flex items-end ${
+                    isActive
+                      ? "opacity-100 z-10"
+                      : "opacity-0 z-0 pointer-events-none"
+                  }`}
+                >
+                  {/* BACKDROP POSTER */}
+                  <img
+                    src={slide.backdrop || slide.poster}
+                    alt={slide.title}
+                    className="absolute inset-0 w-full h-full object-cover object-center scale-105 transition-transform duration-1000 ease-out"
+                  />
 
-            {/* HERO CONTENT */}
-            <div className="relative z-10 p-6 sm:p-10 max-w-2xl text-white">
-              {/* TAGS */}
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                <span className="px-2.5 py-1 bg-purple-600 text-white rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1 shadow-md">
-                  <IoSparklesOutline className="text-xs" /> Featured
-                </span>
+                  {/* CINEMATIC GRADIENT OVERLAYS */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/50 to-transparent hidden sm:block" />
 
-                <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-semibold text-amber-400 border border-white/10">
-                  <IoStarSharp className="text-xs" />
-                  <span>{heroMovie.rating || "8.4"}/10</span>
+                  {/* HERO CONTENT */}
+                  <div className="relative z-10 p-6 sm:p-10 md:p-12 max-w-2xl text-white">
+                    {/* TAGS */}
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <span className="px-2.5 py-1 bg-purple-600 text-white rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1 shadow-md">
+                        <IoSparklesOutline className="text-xs" /> Featured
+                      </span>
+
+                      <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-semibold text-amber-400 border border-white/10">
+                        <IoStarSharp className="text-xs" />
+                        <span>{slide.rating || "8.4"}/10</span>
+                      </div>
+
+                      <span className="px-2.5 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-medium text-gray-200">
+                        {slide.certification || "UA16+"}
+                      </span>
+
+                      {slide.runtime && (
+                        <span className="text-xs text-gray-300">
+                          {slide.runtime} min
+                        </span>
+                      )}
+                    </div>
+
+                    {/* TITLE */}
+                    <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight drop-shadow-md text-white line-clamp-2">
+                      {slide.title}
+                    </h1>
+
+                    {/* GENRES */}
+                    {slide.genres && slide.genres.length > 0 && (
+                      <p className="text-sm font-medium text-purple-300 mt-2">
+                        {slide.genres.slice(0, 3).join(" • ")}
+                      </p>
+                    )}
+
+                    {/* OVERVIEW */}
+                    <p className="text-xs sm:text-sm text-gray-300 mt-2.5 line-clamp-2 sm:line-clamp-3 leading-relaxed drop-shadow-sm">
+                      {slide.overview ||
+                        "Experience top-tier cinema with premium surround sound and crystal clear screens in your city."}
+                    </p>
+
+                    {/* ACTION BUTTONS */}
+                    <div className="flex flex-wrap items-center gap-3.5 mt-5 sm:mt-6">
+                      <button
+                        onClick={() => handleBookNow(slide)}
+                        className="px-6 py-3 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-semibold rounded-xl text-sm shadow-xl flex items-center gap-2 transition duration-200 cursor-pointer"
+                      >
+                        <IoTicketOutline className="text-base" />
+                        Book Tickets
+                      </button>
+
+                      <button
+                        onClick={() => handleWatchTrailer(slide)}
+                        className="px-5 py-3 bg-white/20 hover:bg-white/30 backdrop-blur-md active:scale-95 text-white font-semibold rounded-xl text-sm border border-white/20 flex items-center gap-2 transition duration-200 cursor-pointer"
+                      >
+                        <IoPlayOutline className="text-base" />
+                        Watch Trailer
+                      </button>
+                    </div>
+                  </div>
                 </div>
+              );
+            })}
 
-                <span className="px-2.5 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-medium text-gray-200">
-                  {heroMovie.certification || "UA16+"}
-                </span>
-
-                {heroMovie.runtime && (
-                  <span className="text-xs text-gray-300">
-                    {heroMovie.runtime} min
-                  </span>
-                )}
-              </div>
-
-              {/* TITLE */}
-              <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight drop-shadow-md text-white">
-                {heroMovie.title}
-              </h1>
-
-              {/* GENRES */}
-              {heroMovie.genres && heroMovie.genres.length > 0 && (
-                <p className="text-sm font-medium text-purple-300 mt-2">
-                  {heroMovie.genres.slice(0, 3).join(" • ")}
-                </p>
-              )}
-
-              {/* OVERVIEW */}
-              <p className="text-sm text-gray-300 mt-2.5 line-clamp-2 sm:line-clamp-3 leading-relaxed drop-shadow-sm">
-                {heroMovie.overview ||
-                  "Experience top-tier cinema with premium surround sound and crystal clear screens in your city."}
-              </p>
-
-              {/* ACTION BUTTONS */}
-              <div className="flex flex-wrap items-center gap-3.5 mt-6">
+            {/* CONTROLS (ARROWS & PILL INDICATORS) */}
+            {heroSlides.length > 1 && (
+              <>
+                {/* PREV ARROW */}
                 <button
-                  onClick={() => handleBookNow(heroMovie)}
-                  className="px-6 py-3 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-semibold rounded-xl text-sm shadow-xl flex items-center gap-2 transition duration-200"
+                  type="button"
+                  onClick={prevSlide}
+                  className="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-black/40 hover:bg-black/75 backdrop-blur-md border border-white/15 text-white items-center justify-center transition-all duration-200 shadow-xl cursor-pointer hover:scale-105 active:scale-95"
+                  aria-label="Previous Poster"
                 >
-                  <IoTicketOutline className="text-base" />
-                  Book Tickets
+                  <IoChevronBackOutline className="text-2xl -ml-0.5" />
                 </button>
 
+                {/* NEXT ARROW */}
                 <button
-                  onClick={() => handleWatchTrailer(heroMovie)}
-                  className="px-5 py-3 bg-white/20 hover:bg-white/30 backdrop-blur-md active:scale-95 text-white font-semibold rounded-xl text-sm border border-white/20 flex items-center gap-2 transition duration-200"
+                  type="button"
+                  onClick={nextSlide}
+                  className="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-black/40 hover:bg-black/75 backdrop-blur-md border border-white/15 text-white items-center justify-center transition-all duration-200 shadow-xl cursor-pointer hover:scale-105 active:scale-95"
+                  aria-label="Next Poster"
                 >
-                  <IoPlayOutline className="text-base" />
-                  Watch Trailer
+                  <IoChevronForwardOutline className="text-2xl -mr-0.5" />
                 </button>
-              </div>
-            </div>
+
+                {/* DOT / PILL INDICATORS */}
+                <div className="absolute bottom-4 right-4 sm:bottom-8 sm:right-8 z-20 flex items-center gap-2 bg-black/50 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15">
+                  {heroSlides.map((_, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setCurrentSlide(idx)}
+                      className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                        idx === currentSlide
+                          ? "w-7 bg-purple-500 shadow-sm"
+                          : "w-2 bg-white/40 hover:bg-white/70"
+                      }`}
+                      aria-label={`Slide ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </section>
       )}
